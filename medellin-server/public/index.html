@@ -1,0 +1,1988 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Medellin — Каталог и заказ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,400..600&family=Public+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F4EEE1;
+    --bg-soft: #ECE3D0;
+    --surface: #FFFDF8;
+    --surface-2: #FAF4E8;
+    --ink: #2A1B15;
+    --ink-soft: #6B5A4C;
+    --maroon: #6E2432;
+    --maroon-deep: #4E1622;
+    --maroon-soft: #F3E1DF;
+    --gold: #AD8449;
+    --line: #E4D8C2;
+    --ok: #3E6A4F;
+    --ok-soft: #E2EEE3;
+    --warn: #B3591F;
+    --warn-soft: #F6E7D8;
+    --danger: #A23B34;
+    --danger-soft: #F5E1DE;
+    --radius-l: 22px;
+    --radius-m: 14px;
+    --radius-s: 9px;
+    --font-display: 'Fraunces', 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+    --font-body: 'Public Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    color-scheme: light;
+  }
+
+  :root:not([data-theme="light"]) {
+    @media (prefers-color-scheme: dark) {
+      --bg: #1B1310;
+      --bg-soft: #241A15;
+      --surface: #2A1E18;
+      --surface-2: #241C17;
+      --ink: #F1E7DA;
+      --ink-soft: #C4AF9C;
+      --maroon: #C97C86;
+      --maroon-deep: #E4A6AE;
+      --maroon-soft: #3A2224;
+      --gold: #D2A968;
+      --line: #3D2E26;
+      --ok: #7FB894;
+      --ok-soft: #23342A;
+      --warn: #E0A05E;
+      --warn-soft: #382A1C;
+      --danger: #E28D85;
+      --danger-soft: #3A2320;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1B1310;
+    --bg-soft: #241A15;
+    --surface: #2A1E18;
+    --surface-2: #241C17;
+    --ink: #F1E7DA;
+    --ink-soft: #C4AF9C;
+    --maroon: #C97C86;
+    --maroon-deep: #E4A6AE;
+    --maroon-soft: #3A2224;
+    --gold: #D2A968;
+    --line: #3D2E26;
+    --ok: #7FB894;
+    --ok-soft: #23342A;
+    --warn: #E0A05E;
+    --warn-soft: #382A1C;
+    --danger: #E28D85;
+    --danger-soft: #3A2320;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-body);
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .stage { min-height: 100%; display: flex; justify-content: center; padding: 28px 14px 48px; }
+
+  .phone {
+    width: 100%;
+    max-width: 420px;
+    background: var(--surface);
+    border-radius: 28px;
+    overflow: hidden;
+    box-shadow: 0 30px 60px -20px rgba(60, 30, 15, 0.35);
+    border: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+  }
+
+  header.top {
+    padding: 22px 22px 16px;
+    background: linear-gradient(160deg, var(--maroon) 0%, var(--maroon-deep) 100%);
+    color: #F6E9E4;
+    position: relative;
+  }
+  header.top .brandrow { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+  header.top .wordmark { font-family: var(--font-display); font-weight: 600; font-style: italic; font-size: 1.7rem; letter-spacing: 0.3px; }
+  header.top .sub { font-size: 0.72rem; opacity: 0.78; margin-top: 2px; letter-spacing: 0.2px; }
+
+  .header-controls { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+  .pill-btn {
+    background: rgba(255,255,255,0.14);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: #F6E9E4;
+    font-size: 0.68rem;
+    padding: 6px 10px;
+    border-radius: 999px;
+    cursor: pointer;
+    font-family: var(--font-body);
+    font-weight: 700;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .pill-btn:active { transform: scale(0.97); }
+  .pill-btn .count {
+    background: #F6E9E4;
+    color: var(--maroon-deep);
+    border-radius: 999px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    font-size: 0.62rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+  }
+
+  .steps { display: flex; gap: 6px; margin-top: 18px; }
+  .steps .dot { flex: 1; height: 4px; border-radius: 4px; background: rgba(255,255,255,0.22); overflow: hidden; }
+  .steps .dot > i { display: block; height: 100%; width: 0%; background: #F6E9E4; transition: width 0.35s ease; }
+  .steps .dot.done > i { width: 100%; }
+  .steps .dot.active > i { width: 100%; }
+  .stepline { display: flex; justify-content: space-between; margin-top: 8px; font-size: 0.62rem; opacity: 0.75; letter-spacing: 0.2px; }
+
+  main.body { padding: 20px 20px 10px; flex: 1; }
+  main.body.no-pad-top { padding-top: 14px; }
+
+  .panel-title { font-family: var(--font-display); font-size: 1.32rem; font-weight: 600; margin: 0 0 4px; }
+  .panel-hint { color: var(--ink-soft); font-size: 0.84rem; margin: 0 0 18px; line-height: 1.45; }
+
+  .backlink {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: none;
+    border: none;
+    color: var(--maroon);
+    font-family: var(--font-body);
+    font-weight: 700;
+    font-size: 0.8rem;
+    padding: 0 0 14px;
+    cursor: pointer;
+  }
+
+  .card {
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-m);
+    padding: 14px 16px;
+    margin-bottom: 12px;
+  }
+
+  .item-row { display: flex; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 0.88rem; }
+  .item-row:last-of-type { border-bottom: none; }
+  .item-row .who { display: block; font-size: 0.72rem; color: var(--ink-soft); margin-top: 2px; }
+  .item-row .price { white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+  .total-row { display: flex; justify-content: space-between; align-items: baseline; margin-top: 12px; padding-top: 12px; border-top: 1.5px solid var(--maroon); }
+  .total-row .label { font-size: 0.9rem; color: var(--ink-soft); }
+  .total-row .amount { font-family: var(--font-display); font-size: 1.5rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  label.field-label { display: block; font-size: 0.76rem; color: var(--ink-soft); margin: 14px 0 6px; font-weight: 600; }
+  input[type="text"], input[type="tel"], input[type="number"], textarea, select {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: var(--radius-s);
+    border: 1.4px solid var(--line);
+    background: var(--surface);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 0.94rem;
+  }
+  textarea { resize: vertical; min-height: 70px; line-height: 1.45; }
+  input:focus, textarea:focus, select:focus {
+    outline: 2px solid var(--maroon);
+    outline-offset: 1px;
+    border-color: var(--maroon);
+  }
+
+  .country-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 6px; }
+  .country-btn {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    padding: 12px 6px; border-radius: var(--radius-s); border: 1.4px solid var(--line);
+    background: var(--surface); color: var(--ink); font-family: var(--font-body);
+    font-size: 0.72rem; font-weight: 600; cursor: pointer; text-align: center; line-height: 1.2;
+  }
+  .country-btn .flag { font-size: 1.4rem; }
+  .country-btn.selected { border-color: var(--maroon); background: var(--maroon-soft); color: var(--maroon-deep); }
+  .country-btn:focus-visible { outline: 2px solid var(--maroon); outline-offset: 2px; }
+
+  .convert-box { background: var(--surface-2); border: 1px dashed var(--gold); border-radius: var(--radius-m); padding: 14px 16px; margin-top: 14px; text-align: center; }
+  .convert-box .primary { font-family: var(--font-display); font-size: 1.5rem; font-weight: 600; }
+  .convert-box .approx { color: var(--ink-soft); font-size: 1.02rem; margin-top: 2px; }
+  .convert-box .note { font-size: 0.68rem; color: var(--ink-soft); margin-top: 8px; line-height: 1.4; }
+
+  .pay-block { background: var(--surface-2); border-radius: var(--radius-m); border: 1px solid var(--line); padding: 16px; margin-top: 4px; }
+  .pay-block h3 { font-family: var(--font-display); font-size: 1.06rem; margin: 0 0 10px; font-weight: 600; }
+  .pay-line { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 0.86rem; }
+  .pay-line:last-of-type { border-bottom: none; }
+  .pay-line .k { color: var(--ink-soft); }
+  .pay-line .v { font-weight: 600; text-align: right; }
+  .copy-btn {
+    border: 1.2px solid var(--maroon); background: transparent; color: var(--maroon);
+    font-family: var(--font-body); font-size: 0.7rem; font-weight: 700; padding: 5px 10px;
+    border-radius: 999px; cursor: pointer; white-space: nowrap;
+  }
+  .copy-btn:active { transform: scale(0.96); }
+  .copy-btn.copied { background: var(--ok-soft); border-color: var(--ok); color: var(--ok); }
+
+  .instructions { margin-top: 12px; padding: 12px 14px; background: var(--warn-soft); border-radius: var(--radius-s); font-size: 0.78rem; line-height: 1.5; color: var(--ink); }
+  .instructions b { color: var(--warn); }
+
+  .upload-zone {
+    margin-top: 16px; border: 1.6px dashed var(--line); border-radius: var(--radius-m); padding: 18px;
+    text-align: center; cursor: pointer; background: var(--surface-2);
+  }
+  .upload-zone.has-file { border-style: solid; border-color: var(--ok); background: var(--ok-soft); }
+  .upload-zone input { display: none; }
+  .upload-zone .icon { font-size: 1.5rem; }
+  .upload-zone .txt { font-size: 0.82rem; margin-top: 6px; color: var(--ink-soft); font-weight: 600; }
+  .upload-zone .filename { font-size: 0.74rem; margin-top: 4px; color: var(--ok); word-break: break-all; }
+  .upload-zone img.preview { max-width: 100%; max-height: 140px; border-radius: var(--radius-s); margin-bottom: 8px; object-fit: cover; }
+
+  footer.actions { padding: 14px 20px calc(18px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--line); background: var(--surface); display: flex; gap: 10px; }
+  button.btn { flex: 1; border: none; border-radius: var(--radius-s); padding: 14px 12px; font-family: var(--font-body); font-size: 0.92rem; font-weight: 700; cursor: pointer; }
+  button.btn.ghost { background: transparent; border: 1.4px solid var(--line); color: var(--ink); }
+  button.btn.primary { background: var(--maroon); color: #F8ECE9; }
+  button.btn.primary:disabled { background: var(--line); color: var(--ink-soft); cursor: not-allowed; }
+  button.btn:active:not(:disabled) { transform: scale(0.98); }
+
+  .success-wrap { text-align: center; padding: 30px 10px 10px; }
+  .success-wrap .seal { width: 64px; height: 64px; border-radius: 50%; background: var(--ok-soft); color: var(--ok); display: flex; align-items: center; justify-content: center; font-size: 1.8rem; margin: 0 auto 16px; }
+  .success-wrap h2 { font-family: var(--font-display); font-weight: 600; font-size: 1.4rem; margin: 0 0 8px; }
+  .success-wrap p { color: var(--ink-soft); font-size: 0.88rem; line-height: 1.5; max-width: 300px; margin: 0 auto 20px; }
+  .order-id { display: inline-block; background: var(--surface-2); border: 1px solid var(--line); padding: 8px 16px; border-radius: 999px; font-family: var(--font-display); font-weight: 600; letter-spacing: 0.5px; }
+
+  /* Admin shared */
+  .admin-banner { background: var(--maroon-soft); color: var(--maroon-deep); font-size: 0.7rem; padding: 8px 20px; line-height: 1.4; }
+  .admin-tabs { display: flex; gap: 6px; padding: 14px 20px 0; }
+  .admin-tab-btn {
+    flex: 1; border: 1.4px solid var(--line); background: var(--surface); color: var(--ink-soft);
+    font-family: var(--font-body); font-size: 0.74rem; font-weight: 700; padding: 9px 6px; border-radius: 999px; cursor: pointer;
+  }
+  .admin-tab-btn.active { background: var(--maroon); border-color: var(--maroon); color: #F8ECE9; }
+
+  .order-card { border: 1px solid var(--line); border-radius: var(--radius-m); background: var(--surface-2); padding: 14px 16px; margin-bottom: 14px; }
+  .order-card .oc-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+  .order-card .oc-num { font-family: var(--font-display); font-weight: 600; font-size: 1rem; }
+  .status-pill { font-size: 0.64rem; font-weight: 700; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+  .status-pill.pending { background: var(--warn-soft); color: var(--warn); }
+  .status-pill.paid { background: var(--ok-soft); color: var(--ok); }
+  .status-pill.unpaid { background: var(--danger-soft); color: var(--danger); }
+  .status-pill.shipped { background: var(--maroon-soft); color: var(--maroon-deep); }
+
+  .oc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; font-size: 0.78rem; margin: 10px 0; }
+  .oc-grid .k { color: var(--ink-soft); }
+  .oc-grid .v { font-weight: 600; }
+  .oc-items { font-size: 0.78rem; margin: 8px 0; padding: 8px 10px; background: var(--surface); border-radius: var(--radius-s); line-height: 1.6; }
+  .oc-receipt { margin: 10px 0; }
+  .oc-receipt img { width: 100%; max-height: 160px; object-fit: cover; border-radius: var(--radius-s); border: 1px solid var(--line); }
+  .oc-receipt .none { font-size: 0.76rem; color: var(--ink-soft); font-style: italic; }
+  .oc-actions { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+  .oc-actions button { flex: 1; min-width: 90px; border-radius: var(--radius-s); border: 1.2px solid var(--line); background: var(--surface); color: var(--ink); font-size: 0.7rem; font-weight: 700; padding: 8px 6px; cursor: pointer; }
+  .oc-actions button.on.paid { background: var(--ok); border-color: var(--ok); color: #fff; }
+  .oc-actions button.on.unpaid { background: var(--danger); border-color: var(--danger); color: #fff; }
+  .oc-actions button.on.shipped { background: var(--maroon); border-color: var(--maroon); color: #fff; }
+
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--ink-soft); font-size: 0.86rem; line-height: 1.6; }
+  .empty-state button { margin-top: 14px; }
+
+  /* Rates admin */
+  .rates-intro { font-size: 0.78rem; color: var(--ink-soft); line-height: 1.5; padding: 14px 20px 0; }
+  .rates-intro b { color: var(--ink); }
+  .rate-card { background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius-m); padding: 14px 16px; margin: 12px 20px 0; }
+  .rate-card .rc-top { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.9rem; margin-bottom: 10px; }
+  .rate-card .rc-top .flag { font-size: 1.2rem; }
+  .rate-row { display: flex; align-items: center; gap: 8px; font-size: 0.86rem; }
+  .rate-row span.eq { color: var(--ink-soft); white-space: nowrap; }
+  .rate-row input[type="number"] { width: 100px; padding: 9px 10px; }
+  .rate-example { margin-top: 9px; padding: 8px 10px; background: var(--surface); border-radius: var(--radius-s); font-size: 0.76rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+  .rate-example b { color: var(--ink); }
+  .rates-save-bar { padding: 16px 20px calc(16px + env(safe-area-inset-bottom, 0px)); }
+  .rates-save-bar button { width: 100%; border: none; border-radius: var(--radius-s); padding: 13px 12px; font-family: var(--font-body); font-size: 0.9rem; font-weight: 700; cursor: pointer; background: var(--maroon); color: #F8ECE9; }
+  .rates-save-bar button:active { transform: scale(0.98); }
+  .rates-saved-note { text-align: center; font-size: 0.68rem; color: var(--ok); margin-top: 8px; }
+
+  /* Catalog (client) */
+  .category-chips { display: flex; gap: 7px; overflow-x: auto; padding: 16px 20px 4px; scrollbar-width: none; }
+  .category-chips::-webkit-scrollbar { display: none; }
+  .chip {
+    flex-shrink: 0; padding: 7px 14px; border-radius: 999px; border: 1.4px solid var(--line);
+    background: var(--surface); color: var(--ink-soft); font-size: 0.76rem; font-weight: 700;
+    cursor: pointer; white-space: nowrap; font-family: var(--font-body);
+  }
+  .chip.selected { background: var(--maroon); border-color: var(--maroon); color: #F8ECE9; }
+
+  .catalog-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 14px 20px 6px; }
+  .product-card { background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius-m); overflow: hidden; cursor: pointer; position: relative; }
+  .product-photo {
+    width: 100%; aspect-ratio: 1 / 1; background: linear-gradient(150deg, var(--bg-soft), var(--surface-2));
+    display: flex; align-items: center; justify-content: center; color: var(--ink-soft); font-size: 0.68rem;
+    text-align: center; padding: 8px; line-height: 1.4; position: relative; overflow: hidden;
+  }
+  .product-photo img { width: 100%; height: 100%; object-fit: cover; }
+  .stock-badge {
+    position: absolute; top: 8px; left: 8px; background: var(--danger); color: #fff; font-size: 0.6rem;
+    font-weight: 700; padding: 3px 8px; border-radius: 999px; z-index: 2;
+  }
+  .product-info { padding: 10px 11px 12px; }
+  .product-name { font-size: 0.82rem; font-weight: 700; line-height: 1.3; margin-bottom: 4px; min-height: 2.1em; }
+  .product-price { font-size: 0.86rem; color: var(--maroon-deep); font-weight: 700; }
+  .product-price .unit { font-size: 0.66rem; color: var(--ink-soft); font-weight: 500; display: block; margin-top: 1px; }
+  .addbtn {
+    position: absolute; bottom: 10px; right: 10px; width: 32px; height: 32px; border-radius: 50%;
+    background: var(--maroon); color: #F8ECE9; border: none; font-size: 1.1rem; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 2;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.18);
+  }
+  .addbtn:disabled { background: var(--line); color: var(--ink-soft); cursor: not-allowed; box-shadow: none; }
+  .addbtn:active:not(:disabled) { transform: scale(0.92); }
+
+  /* Product detail */
+  .gallery-main {
+    width: 100%; aspect-ratio: 1 / 1; border-radius: var(--radius-m); background: linear-gradient(150deg, var(--bg-soft), var(--surface-2));
+    display: flex; align-items: center; justify-content: center; color: var(--ink-soft); font-size: 0.8rem; overflow: hidden; position: relative;
+  }
+  .gallery-main img { width: 100%; height: 100%; object-fit: cover; }
+  .gallery-thumbs { display: flex; gap: 8px; margin-top: 8px; overflow-x: auto; }
+  .gallery-thumb { width: 52px; height: 52px; border-radius: var(--radius-s); overflow: hidden; border: 2px solid transparent; cursor: pointer; flex-shrink: 0; background: var(--surface-2); }
+  .gallery-thumb.selected { border-color: var(--maroon); }
+  .gallery-thumb img { width: 100%; height: 100%; object-fit: cover; }
+
+  .detail-cat { display: inline-block; font-size: 0.68rem; font-weight: 700; color: var(--maroon); background: var(--maroon-soft); padding: 3px 10px; border-radius: 999px; margin-bottom: 8px; }
+  .detail-name { font-family: var(--font-display); font-size: 1.32rem; font-weight: 600; margin: 0 0 6px; line-height: 1.25; }
+  .detail-sku { font-size: 0.7rem; color: var(--ink-soft); margin-bottom: 12px; }
+  .detail-price-row { display: flex; gap: 18px; margin: 10px 0 16px; }
+  .detail-price-row .p { }
+  .detail-price-row .p .val { font-family: var(--font-display); font-size: 1.15rem; font-weight: 600; }
+  .detail-price-row .p .lbl { font-size: 0.68rem; color: var(--ink-soft); }
+  .detail-desc { font-size: 0.86rem; line-height: 1.55; color: var(--ink); margin-bottom: 16px; }
+
+  .option-group { margin-bottom: 16px; }
+  .option-group .og-label { font-size: 0.76rem; font-weight: 700; color: var(--ink-soft); margin-bottom: 8px; }
+  .option-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .opt-chip {
+    padding: 7px 13px; border-radius: 999px; border: 1.4px solid var(--line); background: var(--surface);
+    color: var(--ink); font-size: 0.78rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .opt-chip.selected { border-color: var(--maroon); background: var(--maroon-soft); color: var(--maroon-deep); }
+  .swatch { width: 13px; height: 13px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.15); display: inline-block; }
+
+  .qty-stepper { display: flex; align-items: center; gap: 12px; }
+  .qty-stepper button {
+    width: 34px; height: 34px; border-radius: 50%; border: 1.4px solid var(--line); background: var(--surface);
+    color: var(--ink); font-size: 1.1rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .qty-stepper .val { font-size: 1rem; font-weight: 700; min-width: 20px; text-align: center; font-variant-numeric: tabular-nums; }
+
+  .out-of-stock-note { background: var(--danger-soft); color: var(--danger); font-size: 0.78rem; font-weight: 700; padding: 10px 14px; border-radius: var(--radius-s); text-align: center; margin-bottom: 14px; }
+
+  /* Cart lines in checkout step 1 */
+  .cart-line { display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .cart-line:last-of-type { border-bottom: none; }
+  .cart-line .cl-photo { width: 52px; height: 52px; border-radius: var(--radius-s); background: var(--surface); overflow: hidden; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 0.55rem; color: var(--ink-soft); text-align: center; }
+  .cart-line .cl-photo img { width: 100%; height: 100%; object-fit: cover; }
+  .cart-line .cl-info { flex: 1; min-width: 0; }
+  .cart-line .cl-name { font-size: 0.84rem; font-weight: 700; }
+  .cart-line .cl-meta { font-size: 0.72rem; color: var(--ink-soft); margin-top: 2px; }
+  .cart-line .cl-bottom { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
+  .cart-line .cl-price { font-size: 0.84rem; font-weight: 700; white-space: nowrap; }
+  .cart-line .cl-remove { background: none; border: none; color: var(--danger); font-size: 0.68rem; font-weight: 700; cursor: pointer; padding: 0; }
+  .mini-stepper { display: flex; align-items: center; gap: 8px; }
+  .mini-stepper button {
+    width: 24px; height: 24px; border-radius: 50%; border: 1.2px solid var(--line); background: var(--surface);
+    font-size: 0.85rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--ink);
+  }
+  .mini-stepper .val { font-size: 0.8rem; font-weight: 700; min-width: 14px; text-align: center; }
+
+  /* Admin product list */
+  .admin-add-bar { padding: 14px 20px 0; }
+  .admin-add-bar button {
+    width: 100%; border: none; border-radius: var(--radius-s); padding: 13px 12px; font-family: var(--font-body);
+    font-size: 0.88rem; font-weight: 700; cursor: pointer; background: var(--maroon); color: #F8ECE9;
+  }
+  .admin-product-list { padding: 14px 20px 6px; }
+  .admin-product-card { display: flex; gap: 10px; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius-m); padding: 10px; margin-bottom: 10px; }
+  .admin-product-card .ap-photo { width: 56px; height: 56px; border-radius: var(--radius-s); background: var(--surface); overflow: hidden; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 0.5rem; color: var(--ink-soft); text-align: center; }
+  .admin-product-card .ap-photo img { width: 100%; height: 100%; object-fit: cover; }
+  .admin-product-card .ap-info { flex: 1; min-width: 0; }
+  .admin-product-card .ap-name { font-size: 0.86rem; font-weight: 700; }
+  .admin-product-card .ap-meta { font-size: 0.72rem; color: var(--ink-soft); margin-top: 2px; }
+  .ap-badges { display: flex; gap: 5px; margin-top: 5px; flex-wrap: wrap; }
+  .ap-badge { font-size: 0.6rem; font-weight: 700; padding: 2px 7px; border-radius: 999px; }
+  .ap-badge.hidden-badge { background: var(--warn-soft); color: var(--warn); }
+  .ap-badge.oos-badge { background: var(--danger-soft); color: var(--danger); }
+  .ap-actions { display: flex; gap: 5px; margin-top: 8px; flex-wrap: wrap; }
+  .ap-actions button { border: 1.2px solid var(--line); background: var(--surface); color: var(--ink); font-size: 0.66rem; font-weight: 700; padding: 5px 8px; border-radius: var(--radius-s); cursor: pointer; }
+  .ap-actions button.danger-action { border-color: var(--danger); color: var(--danger); }
+
+  /* Product form */
+  .form-section-title { font-family: var(--font-display); font-size: 1.1rem; font-weight: 600; margin: 18px 0 4px; }
+  .photo-thumbs { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  .photo-thumb { position: relative; width: 64px; height: 64px; border-radius: var(--radius-s); overflow: hidden; border: 1px solid var(--line); }
+  .photo-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .photo-thumb .rm {
+    position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; border-radius: 50%; background: rgba(0,0,0,0.55);
+    color: #fff; border: none; font-size: 0.7rem; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0;
+  }
+  .photo-add {
+    width: 64px; height: 64px; border-radius: var(--radius-s); border: 1.6px dashed var(--line); background: var(--surface-2);
+    display: flex; align-items: center; justify-content: center; font-size: 1.3rem; color: var(--ink-soft); cursor: pointer;
+  }
+  .photo-add input { display: none; }
+
+  .pack-price-readout { margin-top: 8px; padding: 9px 12px; background: var(--surface-2); border-radius: var(--radius-s); font-size: 0.8rem; color: var(--ink-soft); }
+  .pack-price-readout b { color: var(--ink); font-family: var(--font-display); font-size: 0.95rem; }
+
+  .category-row { display: flex; gap: 8px; align-items: center; margin-top: 6px; }
+  .category-row select { flex: 1; }
+  .cat-add-btn { border: 1.4px solid var(--maroon); background: transparent; color: var(--maroon); border-radius: var(--radius-s); width: 44px; height: 44px; font-size: 1.2rem; font-weight: 700; cursor: pointer; flex-shrink: 0; }
+  .new-cat-row { display: flex; gap: 8px; margin-top: 8px; }
+  .new-cat-row input { flex: 1; }
+  .new-cat-row button { border: none; background: var(--maroon); color: #F8ECE9; border-radius: var(--radius-s); padding: 0 14px; font-weight: 700; font-size: 0.8rem; cursor: pointer; }
+
+  .segmented { display: flex; border: 1.4px solid var(--line); border-radius: var(--radius-s); overflow: hidden; margin-top: 6px; }
+  .segmented button { flex: 1; border: none; background: var(--surface); color: var(--ink-soft); padding: 11px 8px; font-size: 0.8rem; font-weight: 700; cursor: pointer; font-family: var(--font-body); }
+  .segmented button.selected.in { background: var(--ok-soft); color: var(--ok); }
+  .segmented button.selected.out { background: var(--danger-soft); color: var(--danger); }
+
+  .form-actions { display: flex; gap: 10px; margin-top: 20px; padding-bottom: 6px; }
+  .form-actions button { flex: 1; border-radius: var(--radius-s); padding: 13px 12px; font-family: var(--font-body); font-size: 0.88rem; font-weight: 700; cursor: pointer; }
+  .form-actions .cancel-btn { background: transparent; border: 1.4px solid var(--line); color: var(--ink); }
+  .form-actions .publish-btn { background: var(--maroon); border: none; color: #F8ECE9; }
+
+  .toast {
+    position: fixed; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%) translateY(10px);
+    background: var(--ink); color: var(--bg); padding: 10px 18px; border-radius: 999px; font-size: 0.8rem; font-weight: 600;
+    opacity: 0; pointer-events: none; transition: opacity 0.25s ease, transform 0.25s ease; z-index: 40; max-width: 90vw; text-align: center;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  ::selection { background: var(--maroon); color: #fff; }
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div class="phone" id="phone">
+    <header class="top">
+      <div class="brandrow">
+        <div>
+          <div class="wordmark">Medellin</div>
+          <div class="sub" id="headerSub">Каталог</div>
+        </div>
+        <div class="header-controls" id="headerControls"></div>
+      </div>
+      <div class="steps" id="stepsBar"></div>
+      <div class="stepline" id="stepLabels"></div>
+    </header>
+
+    <main class="body" id="app"></main>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+
+  // ---------------------------------------------------------------
+  // CONFIG — платёжные реквизиты. Заполнить реальными данными перед запуском.
+  // ---------------------------------------------------------------
+  const CONFIG = {
+    kaspi: {
+      ownerName: "Ерлан А.",
+      cardNumber: "4400 4301 XXXX XXXX"
+    },
+    zolotayaKorona: {
+      fullName: "Айгерим А.",
+      phone: "+7 700 258 51 83",
+      receivingCountry: "Казахстан"
+    }
+  };
+
+  const CLIENT_RATE_NOTE = "Расчёт выполнен по текущему курсу Medellin. Возможная комиссия банка или сервиса перевода не включена.";
+
+  // Курсы валют — «1 единица валюты = Х тенге», как на табло обменников.
+  const DEFAULT_RATES = {
+    KGS: 5.30,
+    UZS: 0.0346,
+    TJS: 41.80,
+    RUB: 5.00
+  };
+
+  const COUNTRIES = [
+    { code: "KZ", flag: "🇰🇿", name: "Казахстан", currency: "KZT", payment: "kaspi" },
+    { code: "KG", flag: "🇰🇬", name: "Кыргызстан", currency: "KGS", payment: "kaspi_foreign" },
+    { code: "UZ", flag: "🇺🇿", name: "Узбекистан", currency: "UZS", payment: "kaspi_foreign" },
+    { code: "TJ", flag: "🇹🇯", name: "Таджикистан", currency: "TJS", payment: "kaspi_foreign" },
+    { code: "RU", flag: "🇷🇺", name: "Россия", currency: "RUB", payment: "korona" }
+  ];
+
+  const RATE_CURRENCIES = [
+    { code: "KGS", flag: "🇰🇬", name: "Кыргызстан · сом" },
+    { code: "UZS", flag: "🇺🇿", name: "Узбекистан · сум" },
+    { code: "TJS", flag: "🇹🇯", name: "Таджикистан · сомони" },
+    { code: "RUB", flag: "🇷🇺", name: "Россия · рубль" }
+  ];
+
+  const DEFAULT_CATEGORIES = ["Мужское", "Женское", "Детское", "Пижамы", "Домашние костюмы"];
+
+  const RU_COLOR_MAP = {
+    "чёрный": "#1a1a1a", "черный": "#1a1a1a",
+    "белый": "#f5f5f0",
+    "серый": "#9c9791",
+    "тёмно-синий": "#1f2b47", "темно-синий": "#1f2b47", "синий": "#2b4c8c",
+    "бежевый": "#d9c7a3",
+    "розовый": "#e3a6b4",
+    "голубой": "#a9cbe0",
+    "хаки": "#6b6f43", "оливковый": "#6f7549",
+    "фиолетовый": "#6b4a7a",
+    "красный": "#a4342b",
+    "зелёный": "#4c6b45", "зеленый": "#4c6b45",
+    "коричневый": "#6b4a35",
+    "мультиколор": "linear-gradient(135deg,#d97757,#6b4a7a,#4c6b45)"
+  };
+
+  function nowId(prefix) {
+    return prefix + "_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  }
+
+  function escapeHtml(str) {
+    if (str === null || str === undefined) return "";
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  // ---------------------------------------------------------------
+  // DATA STORES — раньше жили в localStorage, теперь ходят на
+  // настоящий backend (см. index.js / routes/*.js в репозитории
+  // сервера). Это единственные места, которые знают про fetch и
+  // про то, что API живёт на том же origin, что и сама страница —
+  // каталог, корзина, чекаут и админка ничего не заметят, если
+  // однажды поменяется, например, адрес API.
+  // ---------------------------------------------------------------
+  const API_BASE = "";
+  let adminSecret = null;
+  try { adminSecret = sessionStorage.getItem("medellin_admin_secret"); } catch (e) {}
+
+  function adminHeaders(extra) {
+    return Object.assign({ "X-Admin-Secret": adminSecret || "" }, extra || {});
+  }
+
+  const RatesStore = {
+    async load() {
+      const res = await fetch(API_BASE + "/api/rates");
+      if (!res.ok) return Object.assign({}, DEFAULT_RATES);
+      return res.json();
+    },
+    async save(rates) {
+      const res = await fetch(API_BASE + "/api/admin/rates", {
+        method: "PUT",
+        headers: adminHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify(rates)
+      });
+      if (res.ok) state.rates = await res.json();
+      return res.ok;
+    }
+  };
+
+  const CategoryStore = {
+    async load() {
+      const res = await fetch(API_BASE + "/api/categories");
+      if (!res.ok) return DEFAULT_CATEGORIES.slice();
+      return res.json();
+    },
+    async create(name) {
+      const res = await fetch(API_BASE + "/api/admin/categories", {
+        method: "POST",
+        headers: adminHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ name })
+      });
+      if (!res.ok) throw new Error("category create failed: " + res.status);
+      return res.json();
+    }
+  };
+
+  const ProductStore = {
+    async load() {
+      const res = await fetch(API_BASE + "/api/products");
+      if (!res.ok) return [];
+      return res.json();
+    },
+    async create(product) {
+      const res = await fetch(API_BASE + "/api/admin/products", {
+        method: "POST",
+        headers: adminHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify(product)
+      });
+      if (!res.ok) throw new Error("product create failed: " + res.status);
+      return res.json();
+    },
+    async update(id, patch) {
+      const res = await fetch(API_BASE + "/api/admin/products/" + id, {
+        method: "PUT",
+        headers: adminHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify(patch)
+      });
+      if (!res.ok) throw new Error("product update failed: " + res.status);
+      return res.json();
+    },
+    async remove(id) {
+      const res = await fetch(API_BASE + "/api/admin/products/" + id, {
+        method: "DELETE",
+        headers: adminHeaders()
+      });
+      return res.ok;
+    }
+  };
+
+  const OrderStore = {
+    async create(order) {
+      const res = await fetch(API_BASE + "/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(order)
+      });
+      if (!res.ok) throw new Error("order create failed: " + res.status);
+      return res.json();
+    },
+    async loadAll() {
+      const res = await fetch(API_BASE + "/api/admin/orders", { headers: adminHeaders() });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    async setStatus(id, status) {
+      const res = await fetch(API_BASE + "/api/admin/orders/" + id + "/status", {
+        method: "PUT",
+        headers: adminHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ status })
+      });
+      if (!res.ok) throw new Error("status update failed: " + res.status);
+      return res.json();
+    },
+    async checkSecret(secret) {
+      const res = await fetch(API_BASE + "/api/admin/orders", { headers: { "X-Admin-Secret": secret } });
+      return res.ok;
+    }
+  };
+
+  // ---------------------------------------------------------------
+  // STATE
+  // ---------------------------------------------------------------
+  let state = {
+    view: "client",        // client | admin
+    clientView: "catalog", // catalog | product | checkout
+    step: 1,                // используется когда clientView === 'checkout'
+    activeCategory: "all",
+    selectedProductId: null,
+    selectedSize: null,
+    selectedColor: null,
+    galleryIndex: 0,
+    addQty: 1,
+
+    name: "", phone: "", city: "", country: "KZ",
+    receiptDataUrl: null, receiptFileName: null,
+    orderPlaced: false, orderId: null,
+
+    cartItems: [], // {cartItemId, productId, name, photo, pricePerUnit, packQty, packPrice, qty, size, color}
+
+    rates: null, ratesDraft: null, ratesJustSaved: false,
+    products: null, categories: null,
+
+    adminTab: "orders", // orders | rates | products
+    productForm: null,  // {mode:'add'|'edit', id, name, category, description, pricePerUnit, packQty, sizes, colors, sku, inStock, photos, showNewCat, newCatValue}
+
+    adminAuthed: false,
+    adminLoginError: "",
+    ordersCache: [],
+    ordersLoading: false,
+    ordersLoaded: false
+  };
+
+  const STEP_LABELS = ["Корзина", "Данные", "Оплата", "Готово"];
+
+  // ---------------------------------------------------------------
+  // HELPERS
+  // ---------------------------------------------------------------
+  function fmt(n) { return Math.round(n).toLocaleString("ru-RU"); }
+
+  function currencySuffix(code) {
+    return { KZT: "₸", RUB: "₽", KGS: "KGS", UZS: "UZS", TJS: "TJS" }[code] || code;
+  }
+
+  function convert(amountKzt, currencyCode) {
+    if (currencyCode === "KZT") return amountKzt;
+    const rates = state.rates || DEFAULT_RATES;
+    const rate = rates[currencyCode];
+    if (!rate) return 0;
+    return amountKzt / rate;
+  }
+
+  function formatRate(rate) {
+    if (rate === null || rate === undefined || isNaN(rate)) return "—";
+    return rate < 1 ? rate.toFixed(4) : rate.toFixed(2);
+  }
+
+  function getCountry(code) { return COUNTRIES.find(c => c.code === code); }
+
+  function getProduct(id) { return (state.products || []).find(p => p.id === id); }
+
+  function cartTotalKzt() {
+    return state.cartItems.reduce((s, i) => s + i.packPrice * i.qty, 0);
+  }
+
+  function colorSwatchStyle(colorName) {
+    const key = (colorName || "").trim().toLowerCase();
+    const val = RU_COLOR_MAP[key];
+    if (!val) return "background: var(--line);";
+    return val.indexOf("gradient") === 0 ? ("background: " + val + ";") : ("background: " + val + ";");
+  }
+
+  function photoBlock(photos, sizeLabel) {
+    if (photos && photos.length) {
+      return '<img src="' + photos[0] + '" alt="">';
+    }
+    return '<span>' + (sizeLabel || "Фото товара") + '</span>';
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.classList.remove("show"), 1800);
+  }
+
+  function copyText(text, btn) {
+    function ok() {
+      btn.classList.add("copied");
+      const prev = btn.textContent;
+      btn.textContent = "Скопировано";
+      setTimeout(() => { btn.classList.remove("copied"); btn.textContent = prev; }, 1400);
+    }
+    function fail() { showToast("Скопируйте вручную: " + text); }
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(ok).catch(() => { fallbackCopy(text) ? ok() : fail(); });
+      } else {
+        fallbackCopy(text) ? ok() : fail();
+      }
+    } catch (e) { fallbackCopy(text) ? ok() : fail(); }
+  }
+
+  function fallbackCopy(text) {
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.focus(); ta.select();
+      const success = document.execCommand("copy");
+      document.body.removeChild(ta);
+      return success;
+    } catch (e) { return false; }
+  }
+
+  function readFileAsDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // ---------------------------------------------------------------
+  // HEADER
+  // ---------------------------------------------------------------
+  function renderHeader() {
+    const headerSub = document.getElementById("headerSub");
+    if (state.view === "admin") {
+      headerSub.textContent = "Панель администратора";
+    } else if (state.clientView === "catalog") {
+      headerSub.textContent = "Каталог";
+    } else if (state.clientView === "product") {
+      const p = getProduct(state.selectedProductId);
+      headerSub.textContent = p ? p.name : "Товар";
+    } else {
+      headerSub.textContent = "Оформление заказа";
+    }
+
+    const controls = document.getElementById("headerControls");
+    let html = "";
+    if (state.view === "client") {
+      const count = state.cartItems.reduce((s, i) => s + i.qty, 0);
+      html += '<button class="pill-btn" id="cartBtn" type="button">🧺 Корзина' + (count > 0 ? '<span class="count">' + count + '</span>' : '') + '</button>';
+    }
+    html += '<button class="pill-btn" id="viewToggle" type="button">' + (state.view === "admin" ? "Покупатель" : "Админ") + '</button>';
+    controls.innerHTML = html;
+
+    const stepsBar = document.getElementById("stepsBar");
+    const stepLabels = document.getElementById("stepLabels");
+    const showSteps = state.view === "client" && state.clientView === "checkout";
+    stepsBar.style.display = showSteps ? "flex" : "none";
+    stepLabels.style.display = showSteps ? "flex" : "none";
+    if (showSteps) {
+      stepsBar.innerHTML = "";
+      stepLabels.innerHTML = "";
+      for (let i = 1; i <= 4; i++) {
+        const dot = document.createElement("div");
+        dot.className = "dot" + (i < state.step ? " done" : i === state.step ? " active" : "");
+        dot.innerHTML = "<i></i>";
+        stepsBar.appendChild(dot);
+        const lbl = document.createElement("span");
+        lbl.textContent = STEP_LABELS[i - 1];
+        stepLabels.appendChild(lbl);
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------
+  // CLIENT: CATALOG
+  // ---------------------------------------------------------------
+  function renderCatalog() {
+    const products = (state.products || []).filter(p => !p.hidden);
+    const cats = ["all"].concat(state.categories || []);
+
+    const chips = cats.map(c => {
+      const label = c === "all" ? "Все" : c;
+      const selected = state.activeCategory === c;
+      return '<button class="chip ' + (selected ? "selected" : "") + '" data-cat="' + escapeHtml(c) + '" type="button">' + escapeHtml(label) + '</button>';
+    }).join("");
+
+    const filtered = state.activeCategory === "all" ? products : products.filter(p => p.category === state.activeCategory);
+
+    let gridHtml;
+    if (filtered.length === 0) {
+      gridHtml = '<div class="empty-state">В этой категории пока нет товаров.</div>';
+    } else {
+      gridHtml = '<div class="catalog-grid">' + filtered.map(renderProductCard).join("") + '</div>';
+    }
+
+    return '<div class="category-chips">' + chips + '</div>' + gridHtml;
+  }
+
+  function renderProductCard(p) {
+    const oos = !p.inStock;
+    return `
+      <div class="product-card" data-product="${p.id}">
+        <div class="product-photo">
+          ${oos ? '<span class="stock-badge">Нет в наличии</span>' : ''}
+          ${photoBlock(p.photos)}
+        </div>
+        <div class="product-info">
+          <div class="product-name">${escapeHtml(p.name)}</div>
+          <div class="product-price">${fmt(p.pricePerUnit)} ₸<span class="unit">за шт · уп. ${p.packQty} шт</span></div>
+        </div>
+        <button class="addbtn" data-quickadd="${p.id}" ${oos ? "disabled" : ""} type="button">+</button>
+      </div>
+    `;
+  }
+
+  // ---------------------------------------------------------------
+  // CLIENT: PRODUCT DETAIL
+  // ---------------------------------------------------------------
+  function renderProductDetail() {
+    const p = getProduct(state.selectedProductId);
+    if (!p || p.hidden) {
+      return '<button class="backlink" id="backToCatalog" type="button">← Каталог</button><div class="empty-state">Товар не найден или больше не продаётся.</div>';
+    }
+
+    const photos = p.photos || [];
+    const mainPhoto = photos.length ? photos[Math.min(state.galleryIndex, photos.length - 1)] : null;
+
+    const mainHtml = mainPhoto ? '<img src="' + mainPhoto + '" alt="">' : '<span>Фото товара</span>';
+    const thumbsHtml = photos.length > 1 ? '<div class="gallery-thumbs">' + photos.map((ph, idx) =>
+      '<div class="gallery-thumb ' + (idx === state.galleryIndex ? "selected" : "") + '" data-idx="' + idx + '"><img src="' + ph + '" alt=""></div>'
+    ).join("") + '</div>' : '';
+
+    const sizesHtml = (p.sizes && p.sizes.length) ? `
+      <div class="option-group">
+        <div class="og-label">Размер</div>
+        <div class="option-chips">
+          ${p.sizes.map(s => '<button class="opt-chip ' + (state.selectedSize === s ? "selected" : "") + '" data-size="' + escapeHtml(s) + '" type="button">' + escapeHtml(s) + '</button>').join("")}
+        </div>
+      </div>
+    ` : "";
+
+    const colorsHtml = (p.colors && p.colors.length) ? `
+      <div class="option-group">
+        <div class="og-label">Цвет</div>
+        <div class="option-chips">
+          ${p.colors.map(c => '<button class="opt-chip ' + (state.selectedColor === c ? "selected" : "") + '" data-color="' + escapeHtml(c) + '" type="button"><span class="swatch" style="' + colorSwatchStyle(c) + '"></span>' + escapeHtml(c) + '</button>').join("")}
+        </div>
+      </div>
+    ` : "";
+
+    const packPrice = p.pricePerUnit * p.packQty;
+    const oos = !p.inStock;
+
+    return `
+      <button class="backlink" id="backToCatalog" type="button">← Каталог</button>
+      <div class="gallery-main">${mainHtml}</div>
+      ${thumbsHtml}
+
+      <div style="margin-top:16px;">
+        <span class="detail-cat">${escapeHtml(p.category)}</span>
+        <h1 class="detail-name">${escapeHtml(p.name)}</h1>
+        <div class="detail-sku">Артикул: ${escapeHtml(p.sku || "—")}</div>
+
+        <div class="detail-price-row">
+          <div class="p"><div class="val">${fmt(p.pricePerUnit)} ₸</div><div class="lbl">за 1 шт</div></div>
+          <div class="p"><div class="val">${fmt(packPrice)} ₸</div><div class="lbl">упаковка · ${p.packQty} шт</div></div>
+        </div>
+
+        <div class="detail-desc">${escapeHtml(p.description || "")}</div>
+
+        ${oos ? '<div class="out-of-stock-note">Товара временно нет в наличии</div>' : ""}
+
+        ${sizesHtml}
+        ${colorsHtml}
+
+        <div class="option-group">
+          <div class="og-label">Количество упаковок</div>
+          <div class="qty-stepper">
+            <button id="qtyMinus" type="button" ${oos ? "disabled" : ""}>−</button>
+            <span class="val" id="qtyVal">${state.addQty}</span>
+            <button id="qtyPlus" type="button" ${oos ? "disabled" : ""}>+</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // ---------------------------------------------------------------
+  // CHECKOUT STEPS
+  // ---------------------------------------------------------------
+  function renderStep1() {
+    if (state.cartItems.length === 0) {
+      return `
+        <h1 class="panel-title">Ваша корзина</h1>
+        <div class="empty-state">
+          Корзина пуста.
+          <div><button class="btn primary" id="toCatalogEmpty" style="margin-top:14px;">Перейти в каталог</button></div>
+        </div>
+      `;
+    }
+
+    const linesHtml = state.cartItems.map(item => `
+      <div class="cart-line" data-cart-id="${item.cartItemId}">
+        <div class="cl-photo">${photoBlock(item.photo ? [item.photo] : [], "фото")}</div>
+        <div class="cl-info">
+          <div class="cl-name">${escapeHtml(item.name)}</div>
+          <div class="cl-meta">${[item.size, item.color].filter(Boolean).map(escapeHtml).join(" · ") || "без вариантов"} · уп. ${item.packQty} шт</div>
+          <div class="cl-bottom">
+            <div class="mini-stepper">
+              <button data-dec="${item.cartItemId}" type="button">−</button>
+              <span class="val">${item.qty}</span>
+              <button data-inc="${item.cartItemId}" type="button">+</button>
+            </div>
+            <div class="cl-price">${fmt(item.packPrice * item.qty)} ₸</div>
+          </div>
+          <button class="cl-remove" data-remove="${item.cartItemId}" type="button">Удалить</button>
+        </div>
+      </div>
+    `).join("");
+
+    return `
+      <h1 class="panel-title">Ваша корзина</h1>
+      <p class="panel-hint">Собери набор для всей семьи — себе, детям, мужу, брату — и оформи одним заказом.</p>
+      <div class="card">
+        ${linesHtml}
+        <div class="total-row">
+          <span class="label">Итого</span>
+          <span class="amount">${fmt(cartTotalKzt())} ₸</span>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderStep2() {
+    const countryButtons = COUNTRIES.map(c => `
+      <button type="button" class="country-btn ${state.country === c.code ? "selected" : ""}" data-country="${c.code}">
+        <span class="flag">${c.flag}</span><span>${c.name}</span>
+      </button>
+    `).join("");
+
+    const country = getCountry(state.country);
+    const total = cartTotalKzt();
+    const converted = convert(total, country.currency);
+    const showConvert = country.currency !== "KZT";
+
+    const convertBlock = showConvert ? `
+      <div class="convert-box">
+        <div class="primary">${fmt(total)} ₸</div>
+        <div class="approx">≈ ${fmt(converted)} ${currencySuffix(country.currency)}</div>
+        <div class="note">${CLIENT_RATE_NOTE}</div>
+      </div>
+    ` : "";
+
+    return `
+      <h1 class="panel-title">Данные и доставка</h1>
+      <p class="panel-hint">Куда и кому отправляем заказ.</p>
+
+      <label class="field-label" for="fName">Имя</label>
+      <input type="text" id="fName" placeholder="Айгерим" value="${escapeHtml(state.name)}">
+
+      <label class="field-label" for="fPhone">Телефон</label>
+      <input type="tel" id="fPhone" placeholder="+7 7__ ___ __ __" value="${escapeHtml(state.phone)}">
+
+      <label class="field-label" for="fCity">Город</label>
+      <input type="text" id="fCity" placeholder="Шымкент" value="${escapeHtml(state.city)}">
+
+      <label class="field-label">Страна доставки</label>
+      <div class="country-grid">${countryButtons}</div>
+
+      ${convertBlock}
+    `;
+  }
+
+  function renderStep3() {
+    const country = getCountry(state.country);
+    const total = cartTotalKzt();
+    const converted = convert(total, country.currency);
+    const showConvert = country.currency !== "KZT";
+
+    let payBlock = "";
+    if (country.payment === "kaspi" || country.payment === "kaspi_foreign") {
+      payBlock = `
+        <div class="pay-block">
+          <h3>Оплата переводом на Kaspi</h3>
+          <div class="pay-line"><span class="k">Сумма</span><span class="v">${fmt(total)} ₸</span></div>
+          <div class="pay-line"><span class="k">Получатель</span><span class="v">${escapeHtml(CONFIG.kaspi.ownerName)}</span></div>
+          <div class="pay-line"><span class="k">Kaspi Gold</span><span class="v" style="display:flex; align-items:center; gap:8px;">${escapeHtml(CONFIG.kaspi.cardNumber)}<button type="button" class="copy-btn" id="copyCard">Копировать</button></span></div>
+        </div>
+        ${country.payment === "kaspi_foreign" ? `
+          <div class="instructions"><b>Как оплатить из-за рубежа:</b> откройте приложение своего банка → выберите перевод на зарубежную карту → укажите номер Kaspi Gold → выполните перевод.</div>
+        ` : ""}
+      `;
+    } else if (country.payment === "korona") {
+      payBlock = `
+        <div class="pay-block">
+          <h3>Оплата через Золотую Корону</h3>
+          <p style="font-size:0.8rem; color:var(--ink-soft); margin: -2px 0 10px;">Переведите указанную сумму через Золотую Корону по реквизитам получателя.</p>
+          <div class="pay-line"><span class="k">Получатель</span><span class="v" style="display:flex; align-items:center; gap:8px;">${escapeHtml(CONFIG.zolotayaKorona.fullName)}<button type="button" class="copy-btn" id="copyKoronaName">Копировать</button></span></div>
+          <div class="pay-line"><span class="k">Телефон</span><span class="v" style="display:flex; align-items:center; gap:8px;">${escapeHtml(CONFIG.zolotayaKorona.phone)}<button type="button" class="copy-btn" id="copyKoronaPhone">Копировать</button></span></div>
+          <div class="pay-line"><span class="k">Страна получения</span><span class="v">${escapeHtml(CONFIG.zolotayaKorona.receivingCountry)}</span></div>
+        </div>
+      `;
+    }
+
+    const convertNote = showConvert ? `
+      <div class="convert-box" style="margin-bottom:14px;">
+        <div class="primary">${fmt(total)} ₸</div>
+        <div class="approx">≈ ${fmt(converted)} ${currencySuffix(country.currency)}</div>
+      </div>
+    ` : "";
+
+    const uploadZone = state.receiptDataUrl ? `
+      <div class="upload-zone has-file" id="uploadZone">
+        <img src="${state.receiptDataUrl}" class="preview" alt="Чек оплаты" />
+        <div class="txt">Чек прикреплён</div>
+        <div class="filename">${escapeHtml(state.receiptFileName)}</div>
+        <input type="file" id="receiptInput" accept="image/*" />
+      </div>
+    ` : `
+      <div class="upload-zone" id="uploadZone">
+        <div class="icon">📎</div>
+        <div class="txt">Прикрепить чек</div>
+        <input type="file" id="receiptInput" accept="image/*" />
+      </div>
+    `;
+
+    return `
+      <h1 class="panel-title">Оплата</h1>
+      <p class="panel-hint">${country.flag} ${country.name}</p>
+      ${convertNote}
+      ${payBlock}
+      ${uploadZone}
+    `;
+  }
+
+  function renderStep4() {
+    return `
+      <div class="success-wrap">
+        <div class="seal">✓</div>
+        <h2>Заказ отправлен</h2>
+        <p>Мы получили ваш чек и проверим оплату в ближайшее время. Как только всё подтвердится — соберём заказ и отправим.</p>
+        <div class="order-id">№ ${state.orderId}</div>
+      </div>
+    `;
+  }
+
+  function renderFooter() {
+    const old = document.getElementById("footerActions");
+    if (old) old.remove();
+
+    if (state.view === "admin") return;
+    if (state.clientView === "catalog" || state.clientView === "product") {
+      if (state.clientView === "product") renderProductFooter();
+      return;
+    }
+
+    const footer = document.createElement("footer");
+    footer.className = "actions";
+    footer.id = "footerActions";
+
+    if (state.step === 1) {
+      const disabled = state.cartItems.length === 0;
+      footer.innerHTML = `<button class="btn primary" id="toStep2" ${disabled ? "disabled" : ""}>Далее</button>`;
+    } else if (state.step === 2) {
+      footer.innerHTML = `<button class="btn ghost" id="backStep1">Назад</button><button class="btn primary" id="toStep3">К оплате</button>`;
+    } else if (state.step === 3) {
+      const canSubmit = !!state.receiptDataUrl;
+      footer.innerHTML = `<button class="btn ghost" id="backStep2">Назад</button><button class="btn primary" id="submitOrder" ${canSubmit ? "" : "disabled"}>Я оплатил — оформить заказ</button>`;
+    } else if (state.step === 4) {
+      footer.innerHTML = `<button class="btn primary" id="newOrder">Новый заказ</button>`;
+    }
+
+    document.getElementById("phone").appendChild(footer);
+  }
+
+  function renderProductFooter() {
+    const p = getProduct(state.selectedProductId);
+    if (!p) return;
+    const footer = document.createElement("footer");
+    footer.className = "actions";
+    footer.id = "footerActions";
+    const oos = !p.inStock;
+    footer.innerHTML = `<button class="btn primary" id="addToCartDetail" ${oos ? "disabled" : ""}>${oos ? "Нет в наличии" : "Добавить в корзину"}</button>`;
+    document.getElementById("phone").appendChild(footer);
+  }
+
+  // ---------------------------------------------------------------
+  // ADMIN: LOGIN GATE
+  // ---------------------------------------------------------------
+  function renderAdminLogin() {
+    return `
+      <h1 class="panel-title">Вход для администратора</h1>
+      <p class="panel-hint">Пароль задаётся на сервере переменной окружения ADMIN_SECRET.</p>
+      <label class="field-label" for="adminPass">Пароль</label>
+      <input type="text" id="adminPass" placeholder="••••••••">
+      ${state.adminLoginError ? `<p style="color:var(--danger); font-size:0.8rem; margin-top:8px;">${escapeHtml(state.adminLoginError)}</p>` : ""}
+      <div class="form-actions" style="margin-top:18px;">
+        <button class="publish-btn" id="adminLoginBtn" type="button" style="flex:1;">Войти</button>
+      </div>
+    `;
+  }
+
+  function bindAdminLoginEvents() {
+    const btn = document.getElementById("adminLoginBtn");
+    const input = document.getElementById("adminPass");
+    if (!btn || !input) return;
+    const attempt = async () => {
+      const val = input.value.trim();
+      if (!val) return;
+      btn.disabled = true;
+      btn.textContent = "Проверяем…";
+      const ok = await OrderStore.checkSecret(val).catch(() => false);
+      if (ok) {
+        adminSecret = val;
+        try { sessionStorage.setItem("medellin_admin_secret", val); } catch (e) {}
+        state.adminAuthed = true;
+        state.adminLoginError = "";
+      } else {
+        state.adminLoginError = "Неверный пароль";
+      }
+      render();
+    };
+    btn.addEventListener("click", attempt);
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") attempt(); });
+  }
+
+  async function loadOrdersIfNeeded() {
+    if (state.ordersLoaded || state.ordersLoading) return;
+    state.ordersLoading = true;
+    const rows = await OrderStore.loadAll().catch(() => null);
+    state.ordersLoading = false;
+    state.ordersLoaded = true;
+    if (rows === null) {
+      state.adminAuthed = false; // секрет мог устареть — просим войти заново
+      state.ordersLoaded = false;
+      render();
+      return;
+    }
+    state.ordersCache = rows;
+    render();
+  }
+
+  function refreshOrders() {
+    state.ordersLoaded = false;
+    loadOrdersIfNeeded();
+  }
+
+  // ---------------------------------------------------------------
+  // ADMIN: ORDERS
+  // ---------------------------------------------------------------
+  function renderAdmin() {
+    const tabs = `
+      <div class="admin-tabs">
+        <button class="admin-tab-btn ${state.adminTab === "orders" ? "active" : ""}" id="tabOrders" type="button">Заказы</button>
+        <button class="admin-tab-btn ${state.adminTab === "rates" ? "active" : ""}" id="tabRates" type="button">Курсы</button>
+        <button class="admin-tab-btn ${state.adminTab === "products" ? "active" : ""}" id="tabProducts" type="button">Товары</button>
+      </div>
+    `;
+
+    if (state.adminTab === "rates") return tabs + renderRatesAdmin();
+    if (state.adminTab === "products") return tabs + renderProductsAdmin();
+
+    if (state.ordersLoading && !state.ordersLoaded) {
+      return tabs + `<div class="empty-state">Загружаем заказы…</div>`;
+    }
+    if (state.ordersCache.length === 0) {
+      return tabs + `<div class="empty-state">Заказов пока нет.<br>Оформите заказ во «Виде покупателя» — заказ уйдёт на сервер и в Telegram, а здесь появится карточка.</div>`;
+    }
+
+    return tabs + `
+      <div class="admin-banner">Заказы и статусы хранятся на сервере. Кнопки ниже обновляют статус и на сервере, и в сообщении Telegram-бота.</div>
+      <div style="padding: 16px 20px;">${state.ordersCache.slice().reverse().map(renderOrderCard).join("")}</div>
+    `;
+  }
+
+  function renderOrderCard(order) {
+    const country = getCountry(order.country);
+    const statusMap = {
+      pending: { label: "Ожидает", cls: "pending" },
+      paid: { label: "Оплата получена", cls: "paid" },
+      unpaid: { label: "Не оплачено", cls: "unpaid" },
+      shipped: { label: "Отправлен", cls: "shipped" }
+    };
+    const st = statusMap[order.status];
+    const itemsHtml = order.items.map(i =>
+      escapeHtml(i.name) + (i.size || i.color ? " (" + [i.size, i.color].filter(Boolean).map(escapeHtml).join(", ") + ")" : "") +
+      " × " + i.qty + " уп. — " + fmt(i.packPrice * i.qty) + " ₸"
+    ).join("<br>");
+    const receiptHtml = order.receiptPhoto ? `<img src="${order.receiptPhoto}" alt="Чек" />` : `<div class="none">Чек не прикреплён</div>`;
+    const showConvert = country.currency !== "KZT";
+
+    return `
+      <div class="order-card">
+        <div class="oc-top">
+          <span class="oc-num">${country.flag} № ${order.id}</span>
+          <span class="status-pill ${st.cls}">${st.label}</span>
+        </div>
+        <div class="oc-grid">
+          <div><span class="k">Страна: </span><span class="v">${country.name}</span></div>
+          <div><span class="k">Способ оплаты: </span><span class="v">${order.paymentMethod}</span></div>
+          <div><span class="k">Имя: </span><span class="v">${escapeHtml(order.name) || "—"}</span></div>
+          <div><span class="k">Телефон: </span><span class="v">${escapeHtml(order.phone) || "—"}</span></div>
+          <div><span class="k">Город: </span><span class="v">${escapeHtml(order.city) || "—"}</span></div>
+          <div><span class="k">Сумма KZT: </span><span class="v">${fmt(order.totalKzt)} ₸</span></div>
+          ${showConvert ? `<div><span class="k">Показано клиенту: </span><span class="v">≈ ${fmt(order.totalConverted)} ${currencySuffix(country.currency)}</span></div>` : ""}
+          ${showConvert ? `<div><span class="k">Курс на момент заказа: </span><span class="v">1 ${country.currency} = ${formatRate(order.rateUsed)} ₸</span></div>` : ""}
+        </div>
+        <div class="oc-items">${itemsHtml}</div>
+        <div class="oc-receipt">${receiptHtml}</div>
+        <div class="oc-actions">
+          <button data-order="${order.id}" data-status="paid" class="${order.status === "paid" ? "on paid" : ""}">Оплата получена</button>
+          <button data-order="${order.id}" data-status="unpaid" class="${order.status === "unpaid" ? "on unpaid" : ""}">Не оплачено</button>
+          <button data-order="${order.id}" data-status="shipped" class="${order.status === "shipped" ? "on shipped" : ""}">Отправлен</button>
+        </div>
+      </div>
+    `;
+  }
+
+  // ---------------------------------------------------------------
+  // ADMIN: RATES
+  // ---------------------------------------------------------------
+  function renderRatesAdmin() {
+    if (!state.ratesDraft) state.ratesDraft = Object.assign({}, state.rates || DEFAULT_RATES);
+
+    const cards = RATE_CURRENCIES.map(c => {
+      const val = state.ratesDraft[c.code];
+      const example = val > 0 ? `${fmt(cartTotalKzt() || 30000)} ₸ ÷ ${val} = <b>${fmt((cartTotalKzt() || 30000) / val)} ${c.code}</b>` : "укажите курс больше нуля";
+      return `
+        <div class="rate-card">
+          <div class="rc-top"><span class="flag">${c.flag}</span><span>${c.name}</span></div>
+          <div class="rate-row">
+            <span>1 ${c.code} =</span>
+            <input type="number" id="rate-${c.code}" data-code="${c.code}" value="${val}" step="0.0001" min="0.0001">
+            <span class="eq">₸</span>
+          </div>
+          <div class="rate-example" id="example-${c.code}">${example}</div>
+        </div>
+      `;
+    }).join("");
+
+    return `
+      <div class="rates-intro">Базовая валюта магазина — <b>₸ (KZT)</b>. Курс показывает, сколько тенге стоит 1 единица валюты покупателя — как на табло обменников. Итог заказа в тенге делится на курс, чтобы получить сумму в валюте клиента.</div>
+      ${cards}
+      <div class="rates-save-bar">
+        <button type="button" id="saveRates">Сохранить курсы</button>
+        ${state.ratesJustSaved ? `<div class="rates-saved-note">Курсы сохранены и будут использоваться при следующих заказах</div>` : ""}
+      </div>
+    `;
+  }
+
+  // ---------------------------------------------------------------
+  // ADMIN: PRODUCTS
+  // ---------------------------------------------------------------
+  function renderProductsAdmin() {
+    if (state.productForm) return renderProductForm();
+
+    const products = state.products || [];
+    const list = products.length === 0
+      ? '<div class="empty-state">Товаров пока нет. Добавьте первый.</div>'
+      : '<div class="admin-product-list">' + products.slice().reverse().map(renderAdminProductCard).join("") + '</div>';
+
+    return `
+      <div class="admin-add-bar"><button type="button" id="addProductBtn">+ Добавить товар</button></div>
+      ${list}
+    `;
+  }
+
+  function renderAdminProductCard(p) {
+    const packPrice = p.pricePerUnit * p.packQty;
+    return `
+      <div class="admin-product-card" data-product="${p.id}">
+        <div class="ap-photo">${photoBlock(p.photos, "фото")}</div>
+        <div class="ap-info">
+          <div class="ap-name">${escapeHtml(p.name)}</div>
+          <div class="ap-meta">${escapeHtml(p.category)} · ${fmt(p.pricePerUnit)} ₸/шт · уп. ${fmt(packPrice)} ₸ · арт. ${escapeHtml(p.sku || "—")}</div>
+          <div class="ap-badges">
+            ${p.hidden ? '<span class="ap-badge hidden-badge">Скрыт</span>' : ''}
+            ${!p.inStock ? '<span class="ap-badge oos-badge">Нет в наличии</span>' : ''}
+          </div>
+          <div class="ap-actions">
+            <button data-edit="${p.id}" type="button">Редактировать</button>
+            <button data-toggle-hide="${p.id}" type="button">${p.hidden ? "Показать" : "Скрыть"}</button>
+            <button data-delete="${p.id}" class="danger-action" type="button">Удалить</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function blankProductForm() {
+    return {
+      mode: "add", id: null,
+      name: "", category: (state.categories && state.categories[0]) || "", description: "",
+      pricePerUnit: "", packQty: "", sizes: "", colors: "", sku: "",
+      inStock: true, photos: [],
+      showNewCat: false, newCatValue: ""
+    };
+  }
+
+  function renderProductForm() {
+    const f = state.productForm;
+    const isEdit = f.mode === "edit";
+    const packPrice = (parseFloat(f.pricePerUnit) || 0) * (parseFloat(f.packQty) || 0);
+
+    const photosHtml = f.photos.map((ph, idx) => `
+      <div class="photo-thumb"><img src="${ph}" alt=""><button class="rm" data-rm-photo="${idx}" type="button">×</button></div>
+    `).join("") + `
+      <label class="photo-add">+<input type="file" id="photoInput" accept="image/*" multiple></label>
+    `;
+
+    const catOptions = (state.categories || []).map(c => `<option value="${escapeHtml(c)}" ${f.category === c ? "selected" : ""}>${escapeHtml(c)}</option>`).join("");
+
+    return `
+      <h1 class="panel-title">${isEdit ? "Редактировать товар" : "Новый товар"}</h1>
+
+      <div class="form-section-title" style="margin-top:0;">Фотографии</div>
+      <div class="photo-thumbs">${photosHtml}</div>
+
+      <label class="field-label" for="pfName">Название</label>
+      <input type="text" id="pfName" value="${escapeHtml(f.name)}" placeholder="Мужские боксеры, чёрные">
+
+      <label class="field-label">Категория</label>
+      <div class="category-row">
+        <select id="pfCategory">${catOptions}</select>
+        <button class="cat-add-btn" id="pfNewCatToggle" type="button">+</button>
+      </div>
+      ${f.showNewCat ? `
+        <div class="new-cat-row">
+          <input type="text" id="pfNewCatInput" value="${escapeHtml(f.newCatValue)}" placeholder="Новая категория">
+          <button type="button" id="pfNewCatConfirm">Добавить</button>
+        </div>
+      ` : ""}
+
+      <label class="field-label" for="pfDesc">Описание</label>
+      <textarea id="pfDesc" placeholder="Приятный к телу дышащий трикотаж...">${escapeHtml(f.description)}</textarea>
+
+      <label class="field-label" for="pfPrice">Цена за 1 шт, ₸</label>
+      <input type="number" id="pfPrice" value="${f.pricePerUnit}" min="0" placeholder="960">
+
+      <label class="field-label" for="pfPackQty">Количество штук в упаковке</label>
+      <input type="number" id="pfPackQty" value="${f.packQty}" min="1" placeholder="10">
+
+      <div class="pack-price-readout">Цена упаковки: <b>${fmt(packPrice)} ₸</b> — считается автоматически</div>
+
+      <label class="field-label" for="pfSizes">Размеры (через запятую)</label>
+      <input type="text" id="pfSizes" value="${escapeHtml(f.sizes)}" placeholder="M, L, XL, XXL, 3XL">
+
+      <label class="field-label" for="pfColors">Доступные цвета (через запятую)</label>
+      <input type="text" id="pfColors" value="${escapeHtml(f.colors)}" placeholder="чёрный, белый, бежевый">
+
+      <label class="field-label" for="pfSku">Артикул</label>
+      <input type="text" id="pfSku" value="${escapeHtml(f.sku)}" placeholder="MED-M-BLK-10">
+
+      <label class="field-label">Наличие</label>
+      <div class="segmented">
+        <button type="button" id="pfInStockBtn" class="${f.inStock ? "selected in" : ""}">В наличии</button>
+        <button type="button" id="pfOutStockBtn" class="${!f.inStock ? "selected out" : ""}">Нет в наличии</button>
+      </div>
+
+      <div class="form-actions">
+        <button class="cancel-btn" id="pfCancel" type="button">Отмена</button>
+        <button class="publish-btn" id="pfPublish" type="button">${isEdit ? "Сохранить изменения" : "Опубликовать"}</button>
+      </div>
+    `;
+  }
+
+  // ---------------------------------------------------------------
+  // MAIN RENDER
+  // ---------------------------------------------------------------
+  function render() {
+    renderHeader();
+    const app = document.getElementById("app");
+    app.className = "body" + (state.view === "admin" || state.clientView !== "checkout" ? " no-pad-top" : "");
+
+    if (state.view === "admin") {
+      if (!state.adminAuthed) {
+        app.innerHTML = renderAdminLogin();
+        bindAdminLoginEvents();
+      } else {
+        app.innerHTML = renderAdmin();
+        bindAdminEvents();
+        if (state.adminTab === "orders") loadOrdersIfNeeded();
+      }
+    } else if (state.clientView === "catalog") {
+      app.innerHTML = renderCatalog();
+      bindCatalogEvents();
+    } else if (state.clientView === "product") {
+      app.innerHTML = renderProductDetail();
+      bindProductDetailEvents();
+    } else {
+      let html = "";
+      if (state.step === 1) html = renderStep1();
+      else if (state.step === 2) html = renderStep2();
+      else if (state.step === 3) html = renderStep3();
+      else if (state.step === 4) html = renderStep4();
+      app.innerHTML = html;
+      bindCheckoutEvents();
+    }
+
+    renderFooter();
+    bindFooterEvents();
+    bindHeaderEvents();
+  }
+
+  // ---------------------------------------------------------------
+  // EVENTS: header
+  // ---------------------------------------------------------------
+  function bindHeaderEvents() {
+    const viewToggle = document.getElementById("viewToggle");
+    if (viewToggle) viewToggle.addEventListener("click", () => {
+      state.view = state.view === "admin" ? "client" : "admin";
+      render();
+    });
+
+    const cartBtn = document.getElementById("cartBtn");
+    if (cartBtn) cartBtn.addEventListener("click", () => {
+      state.clientView = "checkout";
+      state.step = 1;
+      render();
+    });
+  }
+
+  // ---------------------------------------------------------------
+  // EVENTS: catalog
+  // ---------------------------------------------------------------
+  function bindCatalogEvents() {
+    document.querySelectorAll(".chip").forEach(chip => {
+      chip.addEventListener("click", () => {
+        state.activeCategory = chip.getAttribute("data-cat");
+        render();
+      });
+    });
+
+    document.querySelectorAll(".product-card").forEach(card => {
+      card.addEventListener("click", (e) => {
+        if (e.target.closest("[data-quickadd]")) return;
+        openProduct(card.getAttribute("data-product"));
+      });
+    });
+
+    document.querySelectorAll("[data-quickadd]").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const id = btn.getAttribute("data-quickadd");
+        quickAddToCart(id);
+      });
+    });
+  }
+
+  function openProduct(id) {
+    state.selectedProductId = id;
+    state.selectedSize = null;
+    state.selectedColor = null;
+    state.galleryIndex = 0;
+    state.addQty = 1;
+    state.clientView = "product";
+    render();
+  }
+
+  function quickAddToCart(id) {
+    const p = getProduct(id);
+    if (!p || !p.inStock) return;
+    const size = (p.sizes && p.sizes[0]) || null;
+    const color = (p.colors && p.colors[0]) || null;
+    addProductToCart(p, size, color, 1);
+    showToast("Добавлено: " + p.name + (size || color ? " (" + [size, color].filter(Boolean).join(", ") + ")" : ""));
+  }
+
+  function addProductToCart(p, size, color, qty) {
+    const packPrice = p.pricePerUnit * p.packQty;
+    const key = p.id + "|" + (size || "") + "|" + (color || "");
+    const existing = state.cartItems.find(i => i.cartItemId === key);
+    if (existing) {
+      existing.qty += qty;
+    } else {
+      state.cartItems.push({
+        cartItemId: key,
+        productId: p.id,
+        name: p.name,
+        photo: (p.photos && p.photos[0]) || null,
+        pricePerUnit: p.pricePerUnit,
+        packQty: p.packQty,
+        packPrice: packPrice,
+        qty: qty,
+        size: size,
+        color: color
+      });
+    }
+  }
+
+  // ---------------------------------------------------------------
+  // EVENTS: product detail
+  // ---------------------------------------------------------------
+  function bindProductDetailEvents() {
+    const back = document.getElementById("backToCatalog");
+    if (back) back.addEventListener("click", () => { state.clientView = "catalog"; render(); });
+
+    document.querySelectorAll(".gallery-thumb").forEach(t => {
+      t.addEventListener("click", () => { state.galleryIndex = parseInt(t.getAttribute("data-idx"), 10); render(); });
+    });
+
+    document.querySelectorAll("[data-size]").forEach(btn => {
+      btn.addEventListener("click", () => { state.selectedSize = btn.getAttribute("data-size"); render(); });
+    });
+    document.querySelectorAll("[data-color]").forEach(btn => {
+      btn.addEventListener("click", () => { state.selectedColor = btn.getAttribute("data-color"); render(); });
+    });
+
+    const qtyMinus = document.getElementById("qtyMinus");
+    const qtyPlus = document.getElementById("qtyPlus");
+    if (qtyMinus) qtyMinus.addEventListener("click", () => { state.addQty = Math.max(1, state.addQty - 1); render(); });
+    if (qtyPlus) qtyPlus.addEventListener("click", () => { state.addQty = state.addQty + 1; render(); });
+  }
+
+  // ---------------------------------------------------------------
+  // EVENTS: checkout
+  // ---------------------------------------------------------------
+  function bindCheckoutEvents() {
+    if (state.step === 1) {
+      const toCatalogEmpty = document.getElementById("toCatalogEmpty");
+      if (toCatalogEmpty) toCatalogEmpty.addEventListener("click", () => { state.clientView = "catalog"; render(); });
+
+      document.querySelectorAll("[data-inc]").forEach(btn => btn.addEventListener("click", () => {
+        const item = state.cartItems.find(i => i.cartItemId === btn.getAttribute("data-inc"));
+        if (item) { item.qty += 1; render(); }
+      }));
+      document.querySelectorAll("[data-dec]").forEach(btn => btn.addEventListener("click", () => {
+        const item = state.cartItems.find(i => i.cartItemId === btn.getAttribute("data-dec"));
+        if (item) {
+          item.qty -= 1;
+          if (item.qty <= 0) state.cartItems = state.cartItems.filter(i => i !== item);
+          render();
+        }
+      }));
+      document.querySelectorAll("[data-remove]").forEach(btn => btn.addEventListener("click", () => {
+        const id = btn.getAttribute("data-remove");
+        state.cartItems = state.cartItems.filter(i => i.cartItemId !== id);
+        render();
+      }));
+    }
+
+    if (state.step === 2) {
+      const nameEl = document.getElementById("fName");
+      const phoneEl = document.getElementById("fPhone");
+      const cityEl = document.getElementById("fCity");
+      if (nameEl) nameEl.addEventListener("input", e => state.name = e.target.value);
+      if (phoneEl) phoneEl.addEventListener("input", e => state.phone = e.target.value);
+      if (cityEl) cityEl.addEventListener("input", e => state.city = e.target.value);
+
+      document.querySelectorAll(".country-btn").forEach(btn => {
+        btn.addEventListener("click", () => { state.country = btn.getAttribute("data-country"); render(); });
+      });
+    }
+
+    if (state.step === 3) {
+      const copyCard = document.getElementById("copyCard");
+      if (copyCard) copyCard.addEventListener("click", () => copyText(CONFIG.kaspi.cardNumber, copyCard));
+      const copyKoronaName = document.getElementById("copyKoronaName");
+      if (copyKoronaName) copyKoronaName.addEventListener("click", () => copyText(CONFIG.zolotayaKorona.fullName, copyKoronaName));
+      const copyKoronaPhone = document.getElementById("copyKoronaPhone");
+      if (copyKoronaPhone) copyKoronaPhone.addEventListener("click", () => copyText(CONFIG.zolotayaKorona.phone, copyKoronaPhone));
+
+      const uploadZone = document.getElementById("uploadZone");
+      const receiptInput = document.getElementById("receiptInput");
+      if (uploadZone && receiptInput) {
+        uploadZone.addEventListener("click", () => receiptInput.click());
+        receiptInput.addEventListener("change", (e) => {
+          const file = e.target.files[0];
+          if (!file) return;
+          readFileAsDataUrl(file).then(dataUrl => {
+            state.receiptDataUrl = dataUrl;
+            state.receiptFileName = file.name;
+            render();
+          }).catch(() => showToast("Не удалось прочитать файл"));
+        });
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------
+  // EVENTS: footer
+  // ---------------------------------------------------------------
+  function bindFooterEvents() {
+    const addToCartDetail = document.getElementById("addToCartDetail");
+    if (addToCartDetail) addToCartDetail.addEventListener("click", () => {
+      const p = getProduct(state.selectedProductId);
+      if (!p || !p.inStock) return;
+      if (p.sizes && p.sizes.length && !state.selectedSize) { showToast("Выберите размер"); return; }
+      if (p.colors && p.colors.length && !state.selectedColor) { showToast("Выберите цвет"); return; }
+      addProductToCart(p, state.selectedSize, state.selectedColor, state.addQty);
+      showToast("Добавлено в корзину");
+      state.clientView = "catalog";
+      render();
+    });
+
+    const toStep2 = document.getElementById("toStep2");
+    if (toStep2) toStep2.addEventListener("click", () => { if (state.cartItems.length) { state.step = 2; render(); } });
+
+    const backStep1 = document.getElementById("backStep1");
+    if (backStep1) backStep1.addEventListener("click", () => { state.step = 1; render(); });
+
+    const toStep3 = document.getElementById("toStep3");
+    if (toStep3) toStep3.addEventListener("click", () => { state.step = 3; render(); });
+
+    const backStep2 = document.getElementById("backStep2");
+    if (backStep2) backStep2.addEventListener("click", () => { state.step = 2; render(); });
+
+    const submitOrder = document.getElementById("submitOrder");
+    if (submitOrder) submitOrder.addEventListener("click", async () => {
+      const country = getCountry(state.country);
+      const paymentMethod = country.payment === "korona" ? "Золотая Корона" : "Kaspi";
+      const total = cartTotalKzt();
+      const rateUsed = country.currency === "KZT" ? null : (state.rates || DEFAULT_RATES)[country.currency];
+
+      submitOrder.disabled = true;
+      submitOrder.textContent = "Отправляем…";
+
+      try {
+        const created = await OrderStore.create({
+          country: state.country,
+          name: state.name,
+          phone: state.phone,
+          city: state.city,
+          items: JSON.parse(JSON.stringify(state.cartItems)), // снимок корзины на момент заказа
+          totalKzt: total,
+          totalConverted: convert(total, country.currency),
+          rateUsed: rateUsed,
+          paymentMethod: paymentMethod,
+          receiptPhoto: state.receiptDataUrl
+        });
+
+        state.orderId = created.id;
+        state.orderPlaced = true;
+        state.cartItems = [];
+        state.ordersLoaded = false; // при следующем заходе в «Заказы» подтянем свежий список
+        state.step = 4;
+        render();
+      } catch (e) {
+        showToast("Не удалось отправить заказ. Проверьте связь и попробуйте ещё раз.");
+        submitOrder.disabled = false;
+        submitOrder.textContent = "Я оплатил — оформить заказ";
+      }
+    });
+
+    const newOrder = document.getElementById("newOrder");
+    if (newOrder) newOrder.addEventListener("click", () => {
+      state.step = 1;
+      state.name = ""; state.phone = ""; state.city = ""; state.country = "KZ";
+      state.receiptDataUrl = null; state.receiptFileName = null; state.orderId = null;
+      state.clientView = "catalog";
+      render();
+    });
+  }
+
+  // ---------------------------------------------------------------
+  // EVENTS: admin
+  // ---------------------------------------------------------------
+  function bindAdminEvents() {
+    const tabOrders = document.getElementById("tabOrders");
+    if (tabOrders) tabOrders.addEventListener("click", () => { state.adminTab = "orders"; refreshOrders(); render(); });
+    const tabRates = document.getElementById("tabRates");
+    if (tabRates) tabRates.addEventListener("click", () => { state.adminTab = "rates"; state.ratesJustSaved = false; render(); });
+    const tabProducts = document.getElementById("tabProducts");
+    if (tabProducts) tabProducts.addEventListener("click", () => { state.adminTab = "products"; state.productForm = null; render(); });
+
+    document.querySelectorAll(".oc-actions button").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const id = btn.getAttribute("data-order");
+        const status = btn.getAttribute("data-status");
+        const order = state.ordersCache.find(o => o.id === id);
+        if (!order) return;
+        const nextStatus = order.status === status ? "pending" : status;
+        btn.disabled = true;
+        try {
+          await OrderStore.setStatus(id, nextStatus);
+          order.status = nextStatus;
+        } catch (e) {
+          showToast("Не удалось обновить статус");
+        }
+        render();
+      });
+    });
+
+    bindRatesAdminEvents();
+    bindProductsAdminEvents();
+  }
+
+  function bindRatesAdminEvents() {
+    document.querySelectorAll(".rate-row input[type='number']").forEach(input => {
+      input.addEventListener("input", () => {
+        const code = input.getAttribute("data-code");
+        const val = parseFloat(input.value);
+        state.ratesDraft[code] = isNaN(val) ? 0 : val;
+        state.ratesJustSaved = false;
+        const exEl = document.getElementById("example-" + code);
+        const base = cartTotalKzt() || 30000;
+        if (exEl) exEl.innerHTML = val > 0 ? `${fmt(base)} ₸ ÷ ${val} = <b>${fmt(base / val)} ${code}</b>` : "укажите курс больше нуля";
+      });
+    });
+
+    const saveRatesBtn = document.getElementById("saveRates");
+    if (saveRatesBtn) saveRatesBtn.addEventListener("click", async () => {
+      const invalid = RATE_CURRENCIES.some(c => !(state.ratesDraft[c.code] > 0));
+      if (invalid) { showToast("Курс должен быть больше нуля"); return; }
+      state.rates = Object.assign({}, state.ratesDraft);
+      const ok = await RatesStore.save(state.rates);
+      state.ratesJustSaved = true;
+      showToast(ok ? "Курсы сохранены" : "Не удалось сохранить — проверьте настройки браузера");
+      render();
+    });
+  }
+
+  function bindProductsAdminEvents() {
+    const addProductBtn = document.getElementById("addProductBtn");
+    if (addProductBtn) addProductBtn.addEventListener("click", () => { state.productForm = blankProductForm(); render(); });
+
+    document.querySelectorAll("[data-edit]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const p = getProduct(btn.getAttribute("data-edit"));
+        if (!p) return;
+        state.productForm = {
+          mode: "edit", id: p.id,
+          name: p.name, category: p.category, description: p.description,
+          pricePerUnit: p.pricePerUnit, packQty: p.packQty,
+          sizes: (p.sizes || []).join(", "), colors: (p.colors || []).join(", "),
+          sku: p.sku, inStock: p.inStock, photos: (p.photos || []).slice(),
+          showNewCat: false, newCatValue: ""
+        };
+        render();
+      });
+    });
+
+    document.querySelectorAll("[data-toggle-hide]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const p = getProduct(btn.getAttribute("data-toggle-hide"));
+        if (!p) return;
+        try {
+          const updated = await ProductStore.update(p.id, { hidden: !p.hidden });
+          Object.assign(p, updated);
+        } catch (e) { showToast("Не удалось сохранить изменение"); }
+        render();
+      });
+    });
+
+    document.querySelectorAll("[data-delete]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const p = getProduct(btn.getAttribute("data-delete"));
+        if (!p) return;
+        if (!confirm("Удалить товар «" + p.name + "»? Это действие нельзя отменить.")) return;
+        const ok = await ProductStore.remove(p.id).catch(() => false);
+        if (ok) state.products = state.products.filter(x => x.id !== p.id);
+        else showToast("Не удалось удалить товар");
+        render();
+      });
+    });
+
+    bindProductFormEvents();
+  }
+
+  function bindProductFormEvents() {
+    const f = state.productForm;
+    if (!f) return;
+
+    const bindField = (id, key, isNumberLike) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener("input", (e) => {
+        f[key] = e.target.value;
+        if (isNumberLike) {
+          const readout = document.querySelector(".pack-price-readout b");
+          if (readout) {
+            const pp = (parseFloat(f.pricePerUnit) || 0) * (parseFloat(f.packQty) || 0);
+            readout.textContent = fmt(pp) + " ₸";
+          }
+        }
+      });
+    };
+    bindField("pfName", "name");
+    bindField("pfDesc", "description");
+    bindField("pfPrice", "pricePerUnit", true);
+    bindField("pfPackQty", "packQty", true);
+    bindField("pfSizes", "sizes");
+    bindField("pfColors", "colors");
+    bindField("pfSku", "sku");
+
+    const catSel = document.getElementById("pfCategory");
+    if (catSel) catSel.addEventListener("change", (e) => { f.category = e.target.value; });
+
+    const newCatToggle = document.getElementById("pfNewCatToggle");
+    if (newCatToggle) newCatToggle.addEventListener("click", () => { f.showNewCat = !f.showNewCat; render(); });
+
+    const newCatConfirm = document.getElementById("pfNewCatConfirm");
+    if (newCatConfirm) newCatConfirm.addEventListener("click", async () => {
+      const input = document.getElementById("pfNewCatInput");
+      const val = (input.value || "").trim();
+      if (!val) { showToast("Введите название категории"); return; }
+      try {
+        state.categories = await CategoryStore.create(val);
+      } catch (e) {
+        showToast("Не удалось добавить категорию");
+        return;
+      }
+      f.category = val;
+      f.showNewCat = false;
+      f.newCatValue = "";
+      render();
+    });
+    const newCatInput = document.getElementById("pfNewCatInput");
+    if (newCatInput) newCatInput.addEventListener("input", (e) => { f.newCatValue = e.target.value; });
+
+    const inStockBtn = document.getElementById("pfInStockBtn");
+    if (inStockBtn) inStockBtn.addEventListener("click", () => { f.inStock = true; render(); });
+    const outStockBtn = document.getElementById("pfOutStockBtn");
+    if (outStockBtn) outStockBtn.addEventListener("click", () => { f.inStock = false; render(); });
+
+    const photoInput = document.getElementById("photoInput");
+    if (photoInput) photoInput.addEventListener("change", async (e) => {
+      const files = Array.from(e.target.files || []);
+      for (const file of files) {
+        try {
+          const dataUrl = await readFileAsDataUrl(file);
+          f.photos.push(dataUrl);
+        } catch (err) { showToast("Не удалось загрузить одно из фото"); }
+      }
+      render();
+    });
+
+    document.querySelectorAll("[data-rm-photo]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const idx = parseInt(btn.getAttribute("data-rm-photo"), 10);
+        f.photos.splice(idx, 1);
+        render();
+      });
+    });
+
+    const cancelBtn = document.getElementById("pfCancel");
+    if (cancelBtn) cancelBtn.addEventListener("click", () => { state.productForm = null; render(); });
+
+    const publishBtn = document.getElementById("pfPublish");
+    if (publishBtn) publishBtn.addEventListener("click", async () => {
+      const name = (f.name || "").trim();
+      const price = parseFloat(f.pricePerUnit);
+      const packQty = parseInt(f.packQty, 10);
+
+      if (!name) { showToast("Укажите название товара"); return; }
+      if (!f.category) { showToast("Выберите категорию"); return; }
+      if (!(price > 0)) { showToast("Укажите цену за штуку"); return; }
+      if (!(packQty > 0)) { showToast("Укажите количество штук в упаковке"); return; }
+
+      const sizes = f.sizes.split(",").map(s => s.trim()).filter(Boolean);
+      const colors = f.colors.split(",").map(s => s.trim()).filter(Boolean);
+      const payload = {
+        name, category: f.category, description: f.description,
+        pricePerUnit: price, packQty: packQty,
+        sizes, colors, sku: f.sku, inStock: f.inStock, photos: f.photos
+      };
+
+      publishBtn.disabled = true;
+      try {
+        if (f.mode === "edit") {
+          const updated = await ProductStore.update(f.id, payload);
+          const p = getProduct(f.id);
+          Object.assign(p, updated);
+        } else {
+          const created = await ProductStore.create(payload);
+          state.products.unshift(created);
+        }
+        showToast(f.mode === "edit" ? "Изменения сохранены" : "Товар опубликован");
+        state.productForm = null;
+      } catch (e) {
+        showToast("Не удалось сохранить товар");
+        publishBtn.disabled = false;
+      }
+      render();
+    });
+  }
+
+  // ---------------------------------------------------------------
+  // INIT
+  // ---------------------------------------------------------------
+  async function init() {
+    const [rates, categories, products] = await Promise.all([
+      RatesStore.load(),
+      CategoryStore.load(),
+      ProductStore.load()
+    ]);
+    state.rates = rates;
+    state.categories = categories;
+    state.products = products;
+    state.adminAuthed = !!adminSecret; // доверяем сохранённому паролю; сервер поправит на 401, если он устарел
+
+    // Deep-link: ?product=ID — точка входа для будущего запуска
+    // Mini App сразу на конкретном товаре (напр. из поста в Telegram-
+    // канале через start_param). Пока читаем обычный query-параметр.
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const pid = params.get("product");
+      if (pid && getProduct(pid) && !getProduct(pid).hidden) {
+        state.clientView = "product";
+        state.selectedProductId = pid;
+      }
+    } catch (e) {}
+
+    render();
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
