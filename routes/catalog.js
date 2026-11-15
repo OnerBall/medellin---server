@@ -5,6 +5,7 @@ const fs = require("fs");
 const db = require("../db");
 const products = require("../products");
 const { SECTIONS, CATEGORIES } = require("../categories");
+const rates = require("../rates");
 
 const router = express.Router();
 const PHOTO_DIR = process.env.PHOTO_DIR || path.join(path.dirname(db.DB_PATH), "photos");
@@ -23,6 +24,7 @@ router.get("/api/catalog", (req, res) => {
       minPack: parseInt(process.env.PACK_DEFAULT || "12", 10),
       minOrder: parseInt(process.env.MIN_ORDER || "50000", 10)
     },
+    countries: rates.COUNTRIES.map((c) => ({ ...c, rate: rates.rate(c.cur) })),
     sections: SECTIONS.map((s) => ({
       ...s,
       count: items.filter((p) => p.section === s.key).length,

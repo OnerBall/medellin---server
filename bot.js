@@ -9,6 +9,7 @@ const products = require("./products");
 const { CATEGORIES, SECTIONS, SECTION_TITLE, BY_KEY, label } = require("./categories");
 const { ORDER: UNIT_ORDER, unitOf, plural } = require("./units");
 const MIN_ORDER = parseInt(process.env.MIN_ORDER || "50000", 10);
+const rates = require("./rates");
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const ADMIN_IDS = String(process.env.ADMIN_CHAT_ID || "").split(",").map((x) => parseInt(x.trim(), 10)).filter(Boolean);
@@ -159,9 +160,12 @@ function orderCaption(o) {
   const items = JSON.parse(o.items);
   const lines = items.map((i) => `• ${i.name}${i.size ? ` (${i.size})` : ""} × ${i.qty} уп. (${i.qty * i.pack} ${plural(i.qty * i.pack, unitOf(i.unit).forms)}) — ${fmt(i.price * i.pack * i.qty)} ₸`).join("\n");
   const who = o.tg_username ? `@${o.tg_username}` : o.tg_user_id ? `tg://user?id=${o.tg_user_id}` : "";
-  return `🛒 Заказ №${o.id}\nСтатус: ${STATUS_LABELS[o.status] || o.status}\n\n` +
+  const bc = rates.BY_CODE[o.buyer_country], pc = rates.BY_CODE[rates.countryByPhone(o.phone)];
+  const flags = bc ? `${bc.flag} ${bc.name}` + (pc && pc.code !== bc.code ? ` (номер ${pc.flag})` : "") : pc ? `${pc.flag} ${pc.name} (по номеру)` : "";
+  const shown = o.shown_total && bc ? `\n💱 Покупатель видел: ≈ ${fmt(o.shown_total)} ${bc.sym}` + (o.rate_used ? ` (курс ${o.rate_used})` : "") : "";
+  return `🛒 Заказ №${o.id}${flags ? " · " + flags : ""}\nСтатус: ${STATUS_LABELS[o.status] || o.status}\n\n` +
     `👤 ${o.name || "—"}${who ? " · " + who : ""}\n📞 ${o.phone || "—"}\n📍 ${[o.city, o.country].filter(Boolean).join(", ") || "—"}\n` +
-    (o.comment ? `💬 ${o.comment}\n` : "") + `\n${lines}\n\n💰 Итого: ${fmt(o.total_kzt)} ₸`;
+    (o.comment ? `💬 ${o.comment}\n` : "") + `\n${lines}\n\n💰 Итого: ${fmt(o.total_kzt)} ₸${shown}`;
 }
 
 function statusKb(o) {
@@ -200,7 +204,7 @@ if (bot) {
         "• Добавь меня админом в канал — каждый новый пост с фото и ценой сразу попадёт в каталог.\n" +
         "• Старые товары: выдели посты в канале и перешли их мне.\n" +
         "• Категория берётся из хэштега (#женскиетрусы, #пижамы…). Если хэштега нет — пришлю кнопки, выберешь.\n\n" +
-        "Команды: /stats — сводка, /hidden — скрытые товары, /tags — список хэштегов.", catalogKb());
+        "Команды: /stats — сводка, /hidden — скрытые товары, /tags — хэштеги, /rates — курсы валют.", catalogKb());
     } else {
       await ctx.reply(`Добро пожаловать в Medellin 🤍\nОптовый каталог белья, пижам и халатов.\nЗаказ от ${fmt(MIN_ORDER)} ₸ · доставка по Казахстану и СНГ.`, catalogKb());
     }
@@ -219,6 +223,24 @@ if (bot) {
     const rows = db.prepare("SELECT * FROM products ORDER BY created_at DESC").all().filter((r) => !products.isPublic(r)).slice(0, 15);
     if (!rows.length) return ctx.reply("Скрытых товаров нет — всё в каталоге ✅");
     for (const r of rows) await sendCard(ctx.chat.id, r);
+  });
+
+  bot.command("rates", async (ctx) => {
+    if (!isAdmin(ctx.from.id)) return;
+    const t = rates.allRates().map((r) => `${r.code}: 1 = ${r.value.toFixed(r.code === "UZS" ? 4 : 2)} ₸${r.manual ? " ✋ вручную" : " · Нацбанк"}`).join("\n");
+    await ctx.reply(`💱 Курсы (тенге за 1 единицу):\n${t}\n\nСвой курс: /rate KGS 6.1\nВернуть авто: /rate KGS auto`);
+  });
+
+  bot.command("rate", async (ctx) => {
+    if (!isAdmin(ctx.from.id)) return;
+    const [, code, val] = (ctx.message.text || "").trim().split(/\s+/);
+    const cur = String(code || "").toUpperCase();
+    if (!["KGS", "UZS", "RUB", "TJS"].includes(cur)) return ctx.reply("Пример: /rate KGS 6.1  (валюты: KGS, UZS, RUB, TJS)");
+    if (/^auto$/i.test(val || "")) { rates.setManual(cur, null); await rates.refresh(); return ctx.reply(`${cur}: снова по Нацбанку ✅`); }
+    const v = parseFloat(String(val || "").replace(",", "."));
+    if (!(v > 0)) return ctx.reply("Нужно число, например /rate KGS 6.1");
+    rates.setManual(cur, v);
+    await ctx.reply(`${cur}: 1 = ${v} ₸ ✋ (вручную)`);
   });
 
   bot.command("tags", async (ctx) => {

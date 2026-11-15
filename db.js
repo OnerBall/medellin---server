@@ -57,7 +57,7 @@ function addColumn(table, col, def) {
 }
 for (const [c, d] of [["country", "TEXT DEFAULT ''"], ["source", "TEXT"], ["media_group_id", "TEXT"], ["caption", "TEXT DEFAULT ''"],
   ["admin_msg_id", "INTEGER"], ["updated_at", "INTEGER"], ["unit", "TEXT"], ["media", "TEXT"]]) addColumn("products", c, d);
-for (const [c, d] of [["comment", "TEXT DEFAULT ''"], ["tg_user_id", "INTEGER"], ["tg_username", "TEXT"]]) addColumn("orders", c, d);
+for (const [c, d] of [["comment", "TEXT DEFAULT ''"], ["tg_user_id", "INTEGER"], ["tg_username", "TEXT"], ["buyer_country", "TEXT"], ["shown_total", "INTEGER"], ["rate_used", "REAL"]]) addColumn("orders", c, d);
 
 db.exec(`
   CREATE UNIQUE INDEX IF NOT EXISTS products_source ON products(source) WHERE source IS NOT NULL;

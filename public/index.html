@@ -59,6 +59,13 @@ h2 button{font-family:Inter;font-size:14px;color:var(--gold);font-weight:500}
 .sec-kids{box-shadow:inset 0 0 0 1px rgba(255,230,160,.6),0 10px 26px rgba(0,0,0,.45)}
 .sec-kids::after{background:linear-gradient(180deg,rgba(248,235,184,0) 30%,rgba(246,228,170,.95) 100%)}
 .sec-kids span{color:#3E2B08}.sec-kids small{color:#8A6418}
+.alt{font-size:12px;color:var(--cream2);margin-top:1px}
+.cpick{min-height:86vh;display:flex;flex-direction:column;justify-content:center;gap:12px;text-align:center}
+.cpick img{width:84px;margin:0 auto 6px;border-radius:50%;box-shadow:0 0 0 2px rgba(217,178,111,.5)}
+.cpick h1{font-family:Playfair,Georgia,serif;font-size:30px}.cpick p{color:var(--cream2);margin:-4px 0 10px;line-height:1.5}
+.cbtn{display:flex;align-items:center;gap:14px;width:100%;padding:16px 18px;text-align:left;font-size:18px;font-weight:500}
+.cbtn .f{font-size:30px;line-height:1}.cbtn small{margin-left:auto;color:var(--cream2);font-size:14px}
+.cbtn.sug{box-shadow:inset 0 0 0 1.5px var(--gold),0 10px 30px rgba(0,0,0,.4)}
 .minbar{padding:14px 16px;margin:-6px 0 18px;border-radius:16px;background:rgba(217,178,111,.1);box-shadow:inset 0 0 0 1px rgba(217,178,111,.35);font-size:14px;color:var(--cream)}
 .minbar .track{height:6px;border-radius:3px;background:rgba(245,235,221,.1);margin-top:10px;overflow:hidden}
 .minbar .track i{display:block;height:100%;border-radius:3px;background:linear-gradient(90deg,#B98E48,#F0D49A)}
@@ -179,7 +186,10 @@ let toastT; const toast = (m) => { const t = $("#toast"); t.textContent = m; t.c
 const store = { get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
 const openLink = (u) => { if (tg && tg.openLink) tg.openLink(u); else window.open(u, "_blank"); };
 
-const S = { data: null, stack: [], cart: store.get("medellin_cart", []), q: "", form: store.get("medellin_form", {}) };
+const S = { data: null, stack: [], cart: store.get("medellin_cart", []), q: "", form: store.get("medellin_form", {}), country: store.get("medellin_country", null) };
+const ctry = () => (S.data && S.data.countries.find((c) => c.code === S.country)) || null;
+// «≈ 110 сом» рядом с ценой в тенге — для покупателей не из Казахстана
+const alt = (kzt) => { const c = ctry(); if (!c || c.cur === "KZT" || !c.rate) return ""; const v = kzt / c.rate; return `≈ ${money(c.cur === "UZS" ? Math.round(v / 100) * 100 : v)} ${c.sym}`; };
 const byId = (id) => S.data.products.find((p) => p.id === id);
 const sec = (k) => S.data.sections.find((s) => s.key === k);
 const catTitle = (k) => { for (const s of S.data.sections) for (const c of s.categories) if (c.key === k) return c.title; return ""; };
@@ -200,7 +210,7 @@ function render() {
   if (tg) S.stack.length > 1 ? tg.BackButton.show() : tg.BackButton.hide();
   app.innerHTML = VIEWS[cur.name](cur.params);
   const tabFor = { home: "home", section: "cat", catalog: "cat", cart: "cart", profile: "profile" }[cur.name];
-  $("#nav").innerHTML = ["product", "cart", "done"].includes(cur.name) ? "" : tabs(tabFor);
+  $("#nav").innerHTML = ["product", "cart", "done", "country"].includes(cur.name) ? "" : tabs(tabFor);
   bind(cur);
 }
 
@@ -208,7 +218,7 @@ const tabs = (on) => `<nav class="tabs">${[["home", "Главная", I.home], [
   .map(([k, l, s]) => `<button class="tab ${on === k ? "on" : ""}" data-tab="${k}">${s}${l}${k === "cart" && cartCount() ? `<span class="badge">${cartCount()}</span>` : ""}</button>`).join("")}</nav>`;
 
 const card = (p) => `<button class="card" data-p="${p.id}"><div class="img" style="background-image:url('${p.photos[0]}')">${p.hasVideo ? '<span class="play">▶</span>' : ""}${!p.inStock ? '<span class="tag out">Нет в наличии</span>' : p.isNew ? '<span class="tag">Новинка</span>' : ""}</div>
-  <div class="b"><div class="n">${esc(p.name)}</div><div class="p">${money(p.price)} ₸ / ${p.unit.label}</div><div class="q">упаковка ${p.pack} ${plural(p.pack, ...p.unit.forms)}</div></div>${p.inStock ? `<span class="add" data-add="${p.id}" role="button" aria-label="В корзину">+</span>` : ""}</button>`;
+  <div class="b"><div class="n">${esc(p.name)}</div><div class="p">${money(p.price)} ₸ / ${p.unit.label}</div>${alt(p.price) ? `<div class="alt">${alt(p.price)}</div>` : ""}<div class="q">упаковка ${p.pack} ${plural(p.pack, ...p.unit.forms)}</div></div>${p.inStock ? `<span class="add" data-add="${p.id}" role="button" aria-label="В корзину">+</span>` : ""}</button>`;
 
 const emptyCatalog = () => `<div class="empty"><b>Каталог наполняется</b>Скоро здесь появятся товары. А пока — пишите нам в WhatsApp.</div>`;
 
@@ -255,8 +265,8 @@ const VIEWS = {
       <div class="nav"><button class="icon-btn" data-back aria-label="Назад">${I.back}</button><button class="icon-btn" data-share aria-label="Поделиться">${I.share}</button></div>
       ${p.media.length > 1 ? `<div class="dots">${p.media.map((_, i) => `<i class="${i ? "" : "on"}"></i>`).join("")}</div>` : ""}</div>
       <div class="pname">${esc(p.name)}</div>
-      <div class="prices"><b>${money(p.price)} ₸</b><span>${p.unit.per}</span></div>
-      <div class="pack glass"><div><small>Цена за упаковку · ${p.pack} ${plural(p.pack, ...p.unit.forms)}</small><b>${money(p.price * p.pack)} ₸</b></div><span style="color:var(--rose);font-size:13px;font-weight:600">${p.inStock ? "Опт" : "Нет в наличии"}</span></div>
+      <div class="prices"><b>${money(p.price)} ₸</b><span>${p.unit.per}${alt(p.price) ? " · " + alt(p.price) : ""}</span></div>
+      <div class="pack glass"><div><small>Цена за упаковку · ${p.pack} ${plural(p.pack, ...p.unit.forms)}</small><b>${money(p.price * p.pack)} ₸</b>${alt(p.price * p.pack) ? `<div class="alt">${alt(p.price * p.pack)}</div>` : ""}</div><span style="color:var(--rose);font-size:13px;font-weight:600">${p.inStock ? "Опт" : "Нет в наличии"}</span></div>
       ${p.sizes.length ? `<div class="lbl">Размер${p.sizes.length > 1 ? " — выберите" : ""}</div><div class="sizes">${p.sizes.map((z) => `<button class="size ${size === z ? "on" : ""}" data-psize="${esc(z)}">${esc(z)}</button>`).join("")}</div>` : ""}
       ${p.colors.length ? `<div class="lbl">Цвета</div><div class="colors">${p.colors.map((c) => `<i style="background:${esc(c.hex)}" title="${esc(c.name)}"></i>`).join("")}</div>` : ""}
       <div class="info glass">${info.map(([a, b]) => `<div><span>${a}</span><span>${esc(b)}</span></div>`).join("")}</div>
@@ -274,14 +284,14 @@ const VIEWS = {
       ${S.cart.map((i, k) => { const p = byId(i.id); return `<div class="citem glass"><div class="img" style="background-image:url('${p.photos[0]}')"></div>
         <div class="m"><b>${esc(p.name)}</b><small>${i.size ? esc(i.size) + " · " : ""}${p.pack} ${plural(p.pack, ...p.unit.forms)} в упаковке · ${money(p.price)} ₸/${p.unit.label}</small><span class="s">${money(p.price * p.pack * i.qty)} ₸</span></div>
         <div class="stepper"><button data-cq="${k}:-1" aria-label="Меньше">−</button><b>${i.qty}</b><button data-cq="${k}:1" aria-label="Больше">+</button></div></div>`; }).join("")}
-      <div class="total"><div><small>Итого · ${cartCount()} упак.</small><b>${money(total)} ₸</b></div></div>
+      <div class="total"><div><small>Итого · ${cartCount()} упак.</small><b>${money(total)} ₸</b>${alt(total) ? `<div class="alt" style="font-size:14px">${alt(total)}</div>` : ""}</div></div>
       ${total < S.data.shop.minOrder ? `<div class="minbar">Минимальная сумма заказа — <b>${money(S.data.shop.minOrder)} ₸</b>. Добавьте ещё на <b class="gold">${money(S.data.shop.minOrder - total)} ₸</b>
         <div class="track"><i style="width:${Math.min(100, total / S.data.shop.minOrder * 100)}%"></i></div></div>` : ""}
       <div class="lbl">Данные для заказа</div>
       <input class="field" id="f_name" placeholder="Имя" value="${esc(f.name || (tg && tg.initDataUnsafe.user ? tg.initDataUnsafe.user.first_name : ""))}" autocomplete="name">
-      <input class="field" id="f_phone" placeholder="Телефон, WhatsApp" value="${esc(f.phone || "+7 ")}" inputmode="tel" autocomplete="tel">
+      <input class="field" id="f_phone" placeholder="Телефон, WhatsApp" value="${esc(f.phone || (ctry() || {}).phone || "+7 ")}" inputmode="tel" autocomplete="tel">
       <input class="field" id="f_city" placeholder="Город" value="${esc(f.city || "")}" autocomplete="address-level2">
-      <input class="field" id="f_country" placeholder="Страна" value="${esc(f.country || "Казахстан")}">
+      <input class="field" id="f_country" placeholder="Страна" value="${esc(f.country || (ctry() || {}).name || "Казахстан")}">
       <textarea class="field" id="f_comment" placeholder="Комментарий (необязательно)">${esc(f.comment || "")}</textarea>
       <div class="bar">${total < S.data.shop.minOrder ? `<button class="btn" data-tab="cat">Добавить товары · ещё ${money(S.data.shop.minOrder - total)} ₸</button>` : `<button class="btn" id="order">Оформить заказ · ${money(total)} ₸</button>`}</div>`;
   },
@@ -291,11 +301,20 @@ const VIEWS = {
       <div style="width:100%;display:grid;gap:10px;margin-top:10px"><button class="btn" data-wa="Здравствуйте! Я оформил(а) заказ №${esc(id)} в каталоге Medellin.">${I.wa}Написать в WhatsApp</button>
       <button class="btn ghost" data-tab="home">Вернуться в каталог</button></div></div>`;
   },
+  country() {
+    const lang = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.language_code) || navigator.language || "";
+    const guess = { uz: "UZ", ky: "KG", tg: "TJ", kk: "KZ" }[lang.slice(0, 2).toLowerCase()];
+    const list = [...S.data.countries].sort((a, b) => (b.code === guess) - (a.code === guess));
+    return `<div class="cpick"><img src="img/logo.png" alt="Medellin"><h1>Из какой вы страны?</h1><p>Покажем цены в вашей валюте.<br>Заказ оформляется в тенге.</p>
+      ${list.map((c) => `<button class="cbtn glass ${c.code === (S.country || guess) ? "sug" : ""}" data-country="${c.code}"><span class="f">${c.flag}</span>${esc(c.name)}<small>${esc(c.sym)}</small></button>`).join("")}</div>`;
+  },
   profile() {
     const u = tg && tg.initDataUnsafe && tg.initDataUnsafe.user;
     return `<div class="back"><h1>Профиль</h1></div>
       <div class="glass" style="padding:18px;display:flex;gap:14px;align-items:center;margin-bottom:14px"><img src="img/logo.png" style="width:56px;border-radius:50%" alt="">
         <div><b style="font-size:18px">${esc(u ? [u.first_name, u.last_name].filter(Boolean).join(" ") : "Покупатель")}</b><div class="muted" style="font-size:14px;margin-top:3px">Оптовый покупатель Medellin</div></div></div>
+      <div class="lbl">Страна и валюта</div>
+      <div class="links glass"><button data-go-country>${ctry() ? `${ctry().flag} ${esc(ctry().name)} · ${esc(ctry().sym)}` : "Выбрать страну"} <span>Сменить →</span></button></div>
       <div class="lbl">Как мы работаем</div>
       <div class="info glass"><div><span>Минимальный заказ</span><span>от ${money(S.data.shop.minOrder)} ₸</span></div><div><span>Доставка</span><span>Казахстан и СНГ</span></div><div><span>Оплата</span><span>после подтверждения в WhatsApp</span></div></div>
       <div class="lbl">Связь</div>
@@ -323,6 +342,12 @@ function bind(cur) {
   app.querySelectorAll("[data-sec]").forEach((b) => (b.onclick = () => { haptic(); go("section", { key: b.dataset.sec, cat: b.dataset.cat || "" }); }));
   app.querySelectorAll("[data-wa]").forEach((b) => (b.onclick = () => openLink(`https://wa.me/${S.data.shop.whatsapp}?text=${encodeURIComponent(b.dataset.wa)}`)));
   app.querySelectorAll("[data-link]").forEach((b) => (b.onclick = () => openLink(b.dataset.link)));
+  app.querySelectorAll("[data-country]").forEach((b) => (b.onclick = () => {
+    haptic("ok"); S.country = b.dataset.country; store.set("medellin_country", S.country);
+    const c = ctry(); if (c) { S.form = { ...S.form, phone: S.form.phone && S.form.phone.replace(/\D/g, "").length > 4 ? S.form.phone : c.phone, country: c.name }; store.set("medellin_form", { ...S.form, comment: "" }); }
+    if (S.stack.length > 1) back(); else { S.stack = [{ name: "home", params: {} }]; render(); }
+  }));
+  app.querySelectorAll("[data-go-country]").forEach((b) => (b.onclick = () => { haptic(); go("country"); }));
   const q = $("#q");
   if (q) {
     q.oninput = () => { S.q = q.value; const pos = q.selectionStart; render(); const n = $("#q"); n.focus(); n.setSelectionRange(pos, pos); };
@@ -369,7 +394,7 @@ async function submit() {
   const b = $("#order"); b.disabled = true; b.textContent = "Отправляем…";
   try {
     const r = await fetch("/api/orders", { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...f, items: S.cart, initData: tg ? tg.initData : "" }) });
+      body: JSON.stringify({ ...f, items: S.cart, buyerCountry: S.country, initData: tg ? tg.initData : "" }) });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d.error || "Не получилось отправить, попробуйте ещё раз");
     S.cart = []; saveCart(); haptic("ok");
@@ -385,7 +410,7 @@ async function load() {
     const r = await fetch("/api/catalog", { cache: "no-store" });
     S.data = await r.json();
     saveCart();
-    if (!S.stack.length) S.stack = [{ name: "home", params: {} }];
+    if (!S.stack.length) S.stack = [{ name: S.country ? "home" : "country", params: {} }];
     // ?p=<id> — открыть товар по ссылке
     const pid = new URLSearchParams(location.search).get("p") || (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param);
     if (pid && byId(pid) && S.stack.length === 1) S.stack.push({ name: "product", params: { id: pid } });

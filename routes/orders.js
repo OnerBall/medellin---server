@@ -5,6 +5,7 @@ const crypto = require("crypto");
 const db = require("../db");
 const products = require("../products");
 const { notifyNewOrder } = require("../bot");
+const rates = require("../rates");
 
 const router = express.Router();
 const MIN_ORDER = parseInt(process.env.MIN_ORDER || "50000", 10);
@@ -50,13 +51,16 @@ router.post("/api/orders", async (req, res) => {
   const total = items.reduce((s, i) => s + i.price * i.pack * i.qty, 0);
   if (total < MIN_ORDER) return res.status(400).json({ error: `Минимальная сумма заказа — ${MIN_ORDER.toLocaleString("ru-RU").replace(/\u00a0/g, " ")} ₸` });
   const user = tgUser(b.initData);
+  const buyer = rates.BY_CODE[b.buyerCountry] ? b.buyerCountry : rates.countryByPhone(phone) || "KZ";
+  const cur = rates.BY_CODE[buyer].cur;
   const id = String(Date.now()).slice(-6);
   const row = {
     id, country, name, phone, city, comment, items: JSON.stringify(items), total_kzt: total, status: "pending",
-    tg_user_id: user ? user.id : null, tg_username: user && user.username ? user.username : null, created_at: Date.now()
+    tg_user_id: user ? user.id : null, tg_username: user && user.username ? user.username : null, created_at: Date.now(),
+    buyer_country: buyer, shown_total: rates.convert(total, buyer), rate_used: cur === "KZT" ? null : rates.rate(cur)
   };
-  db.prepare(`INSERT INTO orders (id,country,name,phone,city,comment,items,total_kzt,status,tg_user_id,tg_username,created_at)
-    VALUES (@id,@country,@name,@phone,@city,@comment,@items,@total_kzt,@status,@tg_user_id,@tg_username,@created_at)`).run(row);
+  db.prepare(`INSERT INTO orders (id,country,name,phone,city,comment,items,total_kzt,status,tg_user_id,tg_username,created_at,buyer_country,shown_total,rate_used)
+    VALUES (@id,@country,@name,@phone,@city,@comment,@items,@total_kzt,@status,@tg_user_id,@tg_username,@created_at,@buyer_country,@shown_total,@rate_used)`).run(row);
   notifyNewOrder(row);
   res.json({ id, total, items });
 });

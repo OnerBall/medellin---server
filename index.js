@@ -2,6 +2,7 @@ require("dotenv").config();
 const path = require("path");
 const express = require("express");
 const { bot, WEBAPP_URL, ALLOWED_UPDATES } = require("./bot");
+require("./rates").startAutoRefresh();
 
 const app = express();
 app.use(express.json({ limit: "200kb" }));
