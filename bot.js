@@ -236,6 +236,10 @@ async function notifyNewOrder(o) {
 
 // ---------- обработчики ----------
 const pending = new Map(); // chatId -> { id, field, msg }
+// команды регистрируем и как обычные, и как текст «/pay …» — на случай, если команду
+// вставили скопированной (моноширинным текстом), тогда Telegram не помечает её как команду
+const CMDS = {};
+function command(name, fn) { CMDS[name] = fn; bot.command(name, fn); }
 
 if (bot) {
   bot.start(async (ctx) => {
@@ -251,7 +255,7 @@ if (bot) {
     }
   });
 
-  bot.command("stats", async (ctx) => {
+  command("stats", async (ctx) => {
     if (!isAdmin(ctx.from.id)) return;
     const all = db.prepare("SELECT * FROM products").all();
     const pub = all.filter(products.isPublic).length;
@@ -259,27 +263,27 @@ if (bot) {
     await ctx.reply(`📊 Товаров: ${all.length}\n✅ В каталоге: ${pub}\n🙈 Скрыто: ${all.length - pub}\n\n🛒 Заказов: ${orders.n} на ${fmt(orders.s)} ₸`, catalogKb());
   });
 
-  bot.command("hidden", async (ctx) => {
+  command("hidden", async (ctx) => {
     if (!isAdmin(ctx.from.id)) return;
     const rows = db.prepare("SELECT * FROM products ORDER BY created_at DESC").all().filter((r) => !products.isPublic(r)).slice(0, 15);
     if (!rows.length) return ctx.reply("Скрытых товаров нет — всё в каталоге ✅");
     for (const r of rows) await sendCard(ctx.chat.id, r);
   });
 
-  bot.command("pay", async (ctx) => {
+  command("pay", async (ctx) => {
     if (!isAdmin(ctx.from.id)) return;
     const m = (ctx.message.text || "").match(/^\/pay(?:@\w+)?\s+(kz|cis)\s+([\s\S]+)$/i);
     if (m) { setSetting("pay_" + m[1].toLowerCase(), m[2].trim()); return ctx.reply(`✅ Реквизиты для ${m[1].toLowerCase() === "kz" ? "Казахстана" : "СНГ"} сохранены`); }
     await ctx.reply(`💳 Реквизиты в счёте:\n\n🇰🇿 Казахстан:\n${getSetting("pay_kz") || "— не заданы"}\n\n🌍 СНГ:\n${getSetting("pay_cis") || "— (будут как для Казахстана)"}\n\nИзменить:\n/pay kz Kaspi: +7 778 … (Ерлан Ж.)\n/pay cis Перевод на карту Kaspi 4400 … через ваш банк или Золотая Корона`);
   });
 
-  bot.command("rates", async (ctx) => {
+  command("rates", async (ctx) => {
     if (!isAdmin(ctx.from.id)) return;
     const t = rates.allRates().map((r) => `${r.code}: 1 = ${r.value.toFixed(r.code === "UZS" ? 4 : 2)} ₸${r.manual ? " ✋ вручную" : r.source === "mig" ? " · mig.kz" : r.source === "nbk" ? " · Нацбанк" : " · примерный"}`).join("\n");
     await ctx.reply(`💱 Курсы (тенге за 1 единицу):\n${t}\n\nСвой курс: /rate KGS 6.1\nВернуть авто: /rate KGS auto\nОбновить сейчас: /rate refresh`);
   });
 
-  bot.command("rate", async (ctx) => {
+  command("rate", async (ctx) => {
     if (!isAdmin(ctx.from.id)) return;
     const [, code, val] = (ctx.message.text || "").trim().split(/\s+/);
     const cur = String(code || "").toUpperCase();
@@ -292,7 +296,7 @@ if (bot) {
     await ctx.reply(`${cur}: 1 = ${v} ₸ ✋ (вручную)`);
   });
 
-  bot.command("tags", async (ctx) => {
+  command("tags", async (ctx) => {
     if (!isAdmin(ctx.from.id)) return;
     const t = SECTIONS.map((s) => `${s.title}:\n` + CATEGORIES.filter((c) => c.section === s.key).map((c) => `#${c.tag} — ${c.title}`).join("\n")).join("\n\n");
     await ctx.reply("Хэштеги для постов:\n\n" + t);
@@ -303,6 +307,11 @@ if (bot) {
 
   bot.on("message", async (ctx) => {
     const m = ctx.message;
+    const txt = (m.text || "").trim();
+    if (txt.startsWith("/")) {
+      const name = txt.slice(1).split(/[\s@]/)[0].toLowerCase();
+      if (CMDS[name]) return CMDS[name](ctx);
+    }
     if (!isAdmin(ctx.from.id)) {
       const file = m.photo ? m.photo[m.photo.length - 1].file_id : m.document ? m.document.file_id : null;
       if (file) {
