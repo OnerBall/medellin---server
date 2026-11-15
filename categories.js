@@ -11,9 +11,13 @@ const SECTIONS = [
 // key — внутренний ключ, tag — хэштег в канале (без #, регистр не важен)
 const CATEGORIES = [
   { key: "w_panties", section: "women", title: "Трусы", tag: "женскиетрусы" },
+  { key: "w_granny", section: "women", title: "Трусы для бабушек", tag: "трусыбабушкам", alt: ["длябабушек"] },
   { key: "w_tops", section: "women", title: "Майки", tag: "женскиемайки" },
   { key: "w_croptops", section: "women", title: "Топы", tag: "топы", alt: ["топ", "женскиетопы"] },
   { key: "w_tshirts", section: "women", title: "Футболки", tag: "женскиефутболки", alt: ["футболки"] },
+  { key: "w_sweaters", section: "women", title: "Кофты", tag: "кофты", alt: ["женскиекофты"] },
+  { key: "w_bodysuits", section: "women", title: "Боди", tag: "боди" },
+  { key: "w_nightgowns", section: "women", title: "Сорочки", tag: "сорочки", alt: ["сорочка"] },
   { key: "w_pajamas", section: "women", title: "Пижамы", tag: "пижамы" },
   { key: "w_robes", section: "women", title: "Халаты", tag: "халаты" },
   { key: "w_sets", section: "women", title: "Комплекты", tag: "комплекты" },
@@ -53,6 +57,10 @@ function detect(hashtags, text) {
   if (/термо/.test(t)) return kid ? "k_thermo" : men ? "m_thermo" : /женск/.test(t) ? "w_thermo" : null;
   if (/пижам/.test(t)) return "w_pajamas";
   if (/лосин|панталон|леггин|легинс/.test(t) && !kid && !men) return "w_leggings";
+  if (/бабуш|пожил/.test(t) && /трус/.test(t)) return "w_granny";
+  if (/сорочк/.test(t) && !men) return "w_nightgowns";
+  if (/(^|[^а-я])боди([^а-я]|$)/.test(t) && !kid && !men) return "w_bodysuits";
+  if (/кофт/.test(t) && !kid && !men) return "w_sweaters";
   if (/(^|[^а-я])топ(ы|ик|ики)?([^а-я]|$)/.test(t) && !men) return kid ? (girl || !/мальч/.test(t) ? "k_girls_croptops" : null) : "w_croptops";
   if (/футболк/.test(t) && !kid) return men ? "m_tshirts" : "w_tshirts";
   if (/халат/.test(t)) return "w_robes";
