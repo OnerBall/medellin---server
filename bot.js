@@ -153,7 +153,7 @@ async function finish(post, notifyChat, isEdit) {
 }
 
 // ---------- заказы ----------
-const STATUS_LABELS = { pending: "⏳ Новый", contacted: "📞 Связались", paid: "✅ Оплачен", shipped: "📦 Отправлен", cancelled: "❌ Отменён" };
+const STATUS_LABELS = { pending: "⏳ Новый", contacted: "📞 Связались", invoiced: "💳 Счёт отправлен", paid: "✅ Оплачен", shipped: "📦 Отправлен", cancelled: "❌ Отменён" };
 const CLIENT_STATUS = { paid: "✅ Оплата по заказу №{id} получена. Спасибо!", shipped: "📦 Заказ №{id} отправлен! Спасибо, что выбрали Medellin 🤍" };
 
 function orderCaption(o) {
@@ -174,9 +174,50 @@ function statusKb(o) {
     [Markup.button.callback("📞 Связались", `status:${o.id}:contacted`), Markup.button.callback("✅ Оплачен", `status:${o.id}:paid`)],
     [Markup.button.callback("📦 Отправлен", `status:${o.id}:shipped`), Markup.button.callback("❌ Отменён", `status:${o.id}:cancelled`)]
   ];
+  rows.push([Markup.button.callback("✏️ Изменить заказ", `oed:${o.id}`), Markup.button.callback("💳 Отправить счёт", `inv:${o.id}`)]);
   if (phone.length >= 10) rows.push([Markup.button.url("💬 Написать в WhatsApp", `https://wa.me/${phone}`)]);
   return Markup.inlineKeyboard(rows);
 }
+
+// ---------- реквизиты, изменение заказа, счёт, чеки ----------
+db.exec("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)");
+const getSetting = (k) => (db.prepare("SELECT value FROM settings WHERE key=?").get(k) || {}).value || "";
+const setSetting = (k, v) => db.prepare("INSERT INTO settings (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(k, v);
+
+function getOrder(id) { return db.prepare("SELECT * FROM orders WHERE id=?").get(id); }
+
+function orderLines(o) {
+  return JSON.parse(o.items).map((i) => `• ${i.name}${i.size ? ` (${i.size})` : ""} × ${i.qty} уп. — ${fmt(i.price * i.pack * i.qty)} ₸`).join("\n");
+}
+
+function shownFor(o, total) {
+  const c = rates.BY_CODE[o.buyer_country];
+  if (!c || c.cur === "KZT") return null;
+  const r = o.rate_used || rates.rate(c.cur);
+  const v = total / r;
+  return c.cur === "UZS" ? Math.round(v / 100) * 100 : Math.round(v);
+}
+const altText = (o) => { const c = rates.BY_CODE[o.buyer_country]; return o.shown_total && c ? ` (≈ ${fmt(o.shown_total)} ${c.sym})` : ""; };
+
+function editKb(o) {
+  const items = JSON.parse(o.items);
+  const rows = items.map((i, k) => [
+    Markup.button.callback(`➖ ${i.name.slice(0, 22)}${i.size ? " " + i.size : ""} · ${i.qty} уп.`, `oit:${o.id}:${k}:-1`),
+    Markup.button.callback("➕", `oit:${o.id}:${k}:1`)
+  ]);
+  rows.push([Markup.button.callback("✅ Готово — сообщить клиенту", `oek:${o.id}`)]);
+  rows.push([Markup.button.callback("← Назад без уведомления", `oex:${o.id}`)]);
+  return Markup.inlineKeyboard(rows);
+}
+
+function invoiceText(o) {
+  const kz = !o.buyer_country || o.buyer_country === "KZ";
+  const pay = (kz ? getSetting("pay_kz") : getSetting("pay_cis") || getSetting("pay_kz")).trim();
+  return `💳 Счёт по заказу №${o.id} — Medellin\n\n${orderLines(o)}\n\nК оплате: ${fmt(o.total_kzt)} ₸${altText(o)}\n\n${pay}\n\nПосле оплаты пришлите фото чека в этот чат 🤍`;
+}
+
+const changed = new Set();
+const waLink = (phone, text) => `https://wa.me/${String(phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(text)}`;
 
 async function notifyNewOrder(o) {
   if (!bot || !ADMIN_IDS.length) return;
@@ -188,7 +229,7 @@ async function notifyNewOrder(o) {
   }
   if (o.tg_user_id) {
     try {
-      await bot.telegram.sendMessage(o.tg_user_id, `🤍 Заказ №${o.id} принят!\nСумма: ${fmt(o.total_kzt)} ₸\n\nМы напишем вам в WhatsApp в ближайшее время.`, catalogKb("🛍 Вернуться в каталог"));
+      await bot.telegram.sendMessage(o.tg_user_id, `🤍 Заказ №${o.id} принят!\nСумма: ${fmt(o.total_kzt)} ₸\n\nПроверим наличие и пришлём счёт. Чек об оплате можно прислать сюда 🤍`, catalogKb("🛍 Вернуться в каталог"));
     } catch (e) { /* клиент мог не запускать бота — не страшно */ }
   }
 }
@@ -204,7 +245,7 @@ if (bot) {
         "• Добавь меня админом в канал — каждый новый пост с фото и ценой сразу попадёт в каталог.\n" +
         "• Старые товары: выдели посты в канале и перешли их мне.\n" +
         "• Категория берётся из хэштега (#женскиетрусы, #пижамы…). Если хэштега нет — пришлю кнопки, выберешь.\n\n" +
-        "Команды: /stats — сводка, /hidden — скрытые товары, /tags — хэштеги, /rates — курсы валют.", catalogKb());
+        "Команды: /stats — сводка, /hidden — скрытые товары, /tags — хэштеги, /rates — курсы валют, /pay — реквизиты для счёта.", catalogKb());
     } else {
       await ctx.reply(`Добро пожаловать в Medellin 🤍\nОптовый каталог белья, пижам и халатов.\nЗаказ от ${fmt(MIN_ORDER)} ₸ · доставка по Казахстану и СНГ.`, catalogKb());
     }
@@ -223,6 +264,13 @@ if (bot) {
     const rows = db.prepare("SELECT * FROM products ORDER BY created_at DESC").all().filter((r) => !products.isPublic(r)).slice(0, 15);
     if (!rows.length) return ctx.reply("Скрытых товаров нет — всё в каталоге ✅");
     for (const r of rows) await sendCard(ctx.chat.id, r);
+  });
+
+  bot.command("pay", async (ctx) => {
+    if (!isAdmin(ctx.from.id)) return;
+    const m = (ctx.message.text || "").match(/^\/pay(?:@\w+)?\s+(kz|cis)\s+([\s\S]+)$/i);
+    if (m) { setSetting("pay_" + m[1].toLowerCase(), m[2].trim()); return ctx.reply(`✅ Реквизиты для ${m[1].toLowerCase() === "kz" ? "Казахстана" : "СНГ"} сохранены`); }
+    await ctx.reply(`💳 Реквизиты в счёте:\n\n🇰🇿 Казахстан:\n${getSetting("pay_kz") || "— не заданы"}\n\n🌍 СНГ:\n${getSetting("pay_cis") || "— (будут как для Казахстана)"}\n\nИзменить:\n/pay kz Kaspi: +7 778 … (Ерлан Ж.)\n/pay cis Перевод на карту Kaspi 4400 … через ваш банк или Золотая Корона`);
   });
 
   bot.command("rates", async (ctx) => {
@@ -256,6 +304,21 @@ if (bot) {
   bot.on("message", async (ctx) => {
     const m = ctx.message;
     if (!isAdmin(ctx.from.id)) {
+      const file = m.photo ? m.photo[m.photo.length - 1].file_id : m.document ? m.document.file_id : null;
+      if (file) {
+        const o = db.prepare("SELECT * FROM orders WHERE tg_user_id=? AND status NOT IN ('shipped','cancelled') AND created_at>? ORDER BY created_at DESC LIMIT 1")
+          .get(ctx.from.id, Date.now() - 30 * 86400e3);
+        if (o) {
+          const cap = `🧾 Чек по заказу №${o.id}\n👤 ${o.name} · ${o.phone}\n💰 ${fmt(o.total_kzt)} ₸${altText(o)}`;
+          for (const a of ADMIN_IDS) {
+            try {
+              if (m.photo) await bot.telegram.sendPhoto(a, file, { caption: cap, ...statusKb(o) });
+              else await bot.telegram.sendDocument(a, file, { caption: cap, ...statusKb(o) });
+            } catch (e) { console.warn("[bot] чек:", e.message); }
+          }
+          return ctx.reply(`🧾 Чек по заказу №${o.id} получен! Проверим и подтвердим оплату 🤍`);
+        }
+      }
       return ctx.reply("Каталог Medellin — по кнопке ниже 👇\nВопросы — в WhatsApp: wa.me/" + (process.env.WHATSAPP || "77022585183"), catalogKb());
     }
     // ответ админа на «введи цену/упаковку»
@@ -281,12 +344,69 @@ if (bot) {
     const [act, id, extra] = data.split(":");
     if (!isAdmin(ctx.from.id)) return ctx.answerCbQuery("Только для администратора");
 
+    if (["oed", "oit", "oek", "oex", "inv"].includes(act)) {
+      const o = getOrder(id);
+      if (!o) return ctx.answerCbQuery("Заказ не найден");
+      const edit = async (text, kb) => {
+        try {
+          if (msg.photo || msg.document) await ctx.editMessageCaption(text, kb);
+          else await ctx.editMessageText(text, kb);
+        } catch (e) { /* not modified */ }
+      };
+      if (act === "oed") { await edit(orderCaption(o) + "\n\n✏️ Уменьши количество или убери позиции, которых нет:", editKb(o)); return ctx.answerCbQuery(); }
+      if (act === "oex") { await edit(orderCaption(o), statusKb(o)); return ctx.answerCbQuery(); }
+      if (act === "oit") {
+        const [, , k, d] = data.split(":");
+        const items = JSON.parse(o.items);
+        const it = items[+k];
+        if (!it) return ctx.answerCbQuery();
+        it.qty += +d;
+        if (it.qty <= 0) items.splice(+k, 1);
+        if (!items.length) return ctx.answerCbQuery("Нельзя убрать всё — лучше нажми «❌ Отменён»");
+        const total = items.reduce((a, i) => a + i.price * i.pack * i.qty, 0);
+        db.prepare("UPDATE orders SET items=?, total_kzt=?, shown_total=? WHERE id=?").run(JSON.stringify(items), total, shownFor(o, total), o.id);
+        changed.add(o.id);
+        const u = getOrder(o.id);
+        await edit(orderCaption(u) + "\n\n✏️ Уменьши количество или убери позиции, которых нет:", editKb(u));
+        return ctx.answerCbQuery(`Итого: ${fmt(total)} ₸`);
+      }
+      if (act === "oek") {
+        await edit(orderCaption(o), statusKb(o));
+        if (changed.has(o.id) && o.tg_user_id) {
+          changed.delete(o.id);
+          bot.telegram.sendMessage(o.tg_user_id, `✏️ Заказ №${o.id} уточнён по наличию:\n\n${orderLines(o)}\n\nИтого: ${fmt(o.total_kzt)} ₸${altText(o)}`).catch(() => {});
+          return ctx.answerCbQuery("Клиенту отправлен обновлённый заказ");
+        }
+        changed.delete(o.id);
+        return ctx.answerCbQuery(o.tg_user_id ? "Изменений не было" : "Сохранено (клиент не в Telegram — напиши ему в WhatsApp)");
+      }
+      if (act === "inv") {
+        const kz = !o.buyer_country || o.buyer_country === "KZ";
+        if (!getSetting(kz ? "pay_kz" : "pay_cis") && !getSetting("pay_kz")) {
+          await ctx.answerCbQuery();
+          return ctx.reply("Сначала добавь реквизиты:\n/pay kz Kaspi: +7 … (Имя Ф.)\n/pay cis Перевод на карту Kaspi … или Золотая Корона …");
+        }
+        const text = invoiceText(o);
+        let sent = false;
+        if (o.tg_user_id) { try { await bot.telegram.sendMessage(o.tg_user_id, text); sent = true; } catch (e) { /* клиент не запускал бота */ } }
+        db.prepare("UPDATE orders SET status='invoiced' WHERE id=? AND status IN ('pending','contacted')").run(o.id);
+        const u = getOrder(o.id);
+        await edit(orderCaption(u), statusKb(u));
+        await ctx.answerCbQuery(sent ? "Счёт отправлен клиенту в Telegram" : "Отправь счёт в WhatsApp");
+        return ctx.reply((sent ? "✅ Счёт отправлен клиенту в Telegram. Можно продублировать в WhatsApp:" : "Клиент не в Telegram — отправь счёт в WhatsApp одной кнопкой:"),
+          Markup.inlineKeyboard([[Markup.button.url("💬 Отправить счёт в WhatsApp", waLink(o.phone, text))]]));
+      }
+    }
+
     if (act === "status") {
       if (!STATUS_LABELS[extra]) return ctx.answerCbQuery();
       db.prepare("UPDATE orders SET status=? WHERE id=?").run(extra, id);
       const o = db.prepare("SELECT * FROM orders WHERE id=?").get(id);
       if (o) {
-        try { await ctx.editMessageText(orderCaption(o), statusKb(o)); } catch (e) { /* not modified */ }
+        try {
+          if (msg.photo || msg.document) await ctx.editMessageCaption(`🧾 ${STATUS_LABELS[o.status]} · заказ №${o.id}\n👤 ${o.name} · ${o.phone}\n💰 ${fmt(o.total_kzt)} ₸`, statusKb(o));
+          else await ctx.editMessageText(orderCaption(o), statusKb(o));
+        } catch (e) { /* not modified */ }
         if (o.tg_user_id && CLIENT_STATUS[extra]) bot.telegram.sendMessage(o.tg_user_id, CLIENT_STATUS[extra].replace("{id}", o.id)).catch(() => {});
       }
       return ctx.answerCbQuery(STATUS_LABELS[extra]);
