@@ -7,6 +7,8 @@ const { Telegraf, Markup } = require("telegraf");
 const db = require("./db");
 const products = require("./products");
 const { CATEGORIES, SECTIONS, SECTION_TITLE, BY_KEY, label } = require("./categories");
+const { ORDER: UNIT_ORDER, unitOf, plural } = require("./units");
+const MIN_ORDER = parseInt(process.env.MIN_ORDER || "50000", 10);
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const ADMIN_IDS = String(process.env.ADMIN_CHAT_ID || "").split(",").map((x) => parseInt(x.trim(), 10)).filter(Boolean);
@@ -35,19 +37,23 @@ function cardText(r) {
   else if (missing.length) status = `⚠️ Скрыт: укажите ${missing.join(", ")}`;
   else status = r.in_stock ? "✅ В каталоге" : "⛔ В каталоге, но «нет в наличии»";
   const sizes = JSON.parse(r.sizes || "[]");
+  const u = unitOf(r.unit);
+  const media = products.mediaOf(r) || [];
+  const nv = media.filter((m) => m.t === "v").length, np = media.length ? media.filter((m) => m.t === "p").length : JSON.parse(r.photos || "[]").length;
   return [
     status, "",
     `🛍 ${r.name}`,
-    `💰 ${r.price_per_unit ? fmt(r.price_per_unit) + " ₸ / шт" : "цена не найдена"} · упаковка ${r.pack_qty} шт` + (r.price_per_unit ? ` = ${fmt(r.price_per_unit * r.pack_qty)} ₸` : ""),
+    `💰 ${r.price_per_unit ? fmt(r.price_per_unit) + " ₸ / " + u.label : "цена не найдена"} · упаковка ${products.packText(r)}` + (r.price_per_unit ? ` = ${fmt(r.price_per_unit * r.pack_qty)} ₸` : ""),
     `📂 ${label(r.category)}`,
     sizes.length ? `📏 ${sizes.join(" ")}` : null,
-    `🖼 фото: ${JSON.parse(r.photos || "[]").length}`
+    `🖼 фото: ${np}` + (nv ? ` · 🎬 видео: ${nv}` : "")
   ].filter((x) => x !== null).join("\n");
 }
 
 function cardKb(r) {
   return Markup.inlineKeyboard([
     [Markup.button.callback("📂 Категория", `cat:${r.id}`), Markup.button.callback("💰 Цена", `price:${r.id}`), Markup.button.callback("📦 Упаковка", `pack:${r.id}`)],
+    [Markup.button.callback(`🏷 Цена ${unitOf(r.unit).per}`, `unit:${r.id}`)],
     [Markup.button.callback(r.hidden === 2 ? "👁 Показать" : "🙈 Скрыть", `hide:${r.id}`),
       Markup.button.callback(r.in_stock ? "⛔ Нет в наличии" : "✅ Есть в наличии", `stock:${r.id}`)],
     [Markup.button.callback("🗑 Удалить", `del:${r.id}`)]
@@ -86,12 +92,14 @@ async function editCard(msg, r, kb) {
 }
 
 // ---------- разбор сообщения с товаром ----------
-function photoOf(m) {
-  if (m.photo && m.photo.length) return m.photo[m.photo.length - 1].file_id;
-  if (m.video && (m.video.thumbnail || m.video.thumb)) return (m.video.thumbnail || m.video.thumb).file_id;
-  if (m.document && /^image\//.test(m.document.mime_type || "")) return m.document.file_id;
+function mediaOf(m) {
+  if (m.photo && m.photo.length) { const p = m.photo[m.photo.length - 1]; return { t: "p", id: p.file_id, uid: p.file_unique_id }; }
+  const v = m.video || m.animation || (m.document && /^video\//.test(m.document.mime_type || "") ? m.document : null);
+  if (v) { const th = v.thumbnail || v.thumb; return { t: "v", id: v.file_id, uid: v.file_unique_id, th: th ? th.file_id : null, size: v.file_size || 0 }; }
+  if (m.document && /^image\//.test(m.document.mime_type || "")) return { t: "p", id: m.document.file_id, uid: m.document.file_unique_id };
   return null;
 }
+const photoOf = (m) => mediaOf(m);
 
 function sourceOf(m) {
   const o = m.forward_origin;
@@ -111,21 +119,21 @@ const albums = new Map();
 function collect(m, notifyChat, isEdit) {
   const src = sourceOf(m);
   if (src.chat && !channelAllowed(src.chat)) return;
-  const photo = photoOf(m);
+  const item = mediaOf(m);
   const caption = m.caption || m.text || "";
-  if (!m.media_group_id) return finish({ source: src.key, mediaGroupId: null, caption, photos: photo ? [photo] : [] }, notifyChat, isEdit);
+  if (!m.media_group_id) return finish({ source: src.key, mediaGroupId: null, caption, media: item ? [item] : [] }, notifyChat, isEdit);
   // для альбомов ключ — по первому (наименьшему) сообщению, чтобы пересылка того же альбома не создала дубль
   const gid = `${m.chat.id}:${m.media_group_id}`;
   let a = albums.get(gid);
   if (!a) { a = { photos: [], caption: "", keys: [], notifyChat, isEdit }; albums.set(gid, a); }
-  if (photo) a.photos.push({ id: m.message_id, photo });
+  if (item) a.photos.push({ id: m.message_id, item });
   if (caption) a.caption = caption;
   a.keys.push({ id: m.message_id, key: src.key });
   clearTimeout(a.timer);
   a.timer = setTimeout(() => {
     albums.delete(gid);
     const first = a.keys.sort((x, y) => x.id - y.id)[0];
-    finish({ source: first.key, mediaGroupId: gid, caption: a.caption, photos: a.photos.sort((x, y) => x.id - y.id).map((p) => p.photo) }, a.notifyChat, a.isEdit);
+    finish({ source: first.key, mediaGroupId: gid, caption: a.caption, media: a.photos.sort((x, y) => x.id - y.id).map((p) => p.item) }, a.notifyChat, a.isEdit);
   }, ALBUM_WAIT_MS);
 }
 
@@ -138,8 +146,8 @@ async function finish(post, notifyChat, isEdit) {
     if (notifyChat) await bot.telegram.sendMessage(notifyChat, "🤔 Не похоже на товар: нет ни фото, ни цены. Пропускаю.");
     return;
   }
-  if (!res.created && !res.captionChanged && !notifyChat) return; // повтор без изменений — молчим
-  const prefix = res.created ? "🆕 Новый товар из канала" : isEdit || res.captionChanged ? "✏️ Товар обновлён" : "♻️ Этот товар уже в каталоге";
+  if (!res.created && !res.captionChanged && !res.mediaChanged && !notifyChat) return; // повтор без изменений — молчим
+  const prefix = res.created ? "🆕 Новый товар из канала" : isEdit || res.captionChanged || res.mediaChanged ? "✏️ Товар обновлён" : "♻️ Этот товар уже в каталоге";
   try { await sendCard(target, res.product, prefix); } catch (e) { console.warn("[bot] card:", e.message); }
 }
 
@@ -149,7 +157,7 @@ const CLIENT_STATUS = { paid: "✅ Оплата по заказу №{id} пол
 
 function orderCaption(o) {
   const items = JSON.parse(o.items);
-  const lines = items.map((i) => `• ${i.name}${i.size ? ` (${i.size})` : ""} × ${i.qty} уп. (${i.qty * i.pack} шт) — ${fmt(i.price * i.pack * i.qty)} ₸`).join("\n");
+  const lines = items.map((i) => `• ${i.name}${i.size ? ` (${i.size})` : ""} × ${i.qty} уп. (${i.qty * i.pack} ${plural(i.qty * i.pack, unitOf(i.unit).forms)}) — ${fmt(i.price * i.pack * i.qty)} ₸`).join("\n");
   const who = o.tg_username ? `@${o.tg_username}` : o.tg_user_id ? `tg://user?id=${o.tg_user_id}` : "";
   return `🛒 Заказ №${o.id}\nСтатус: ${STATUS_LABELS[o.status] || o.status}\n\n` +
     `👤 ${o.name || "—"}${who ? " · " + who : ""}\n📞 ${o.phone || "—"}\n📍 ${[o.city, o.country].filter(Boolean).join(", ") || "—"}\n` +
@@ -194,7 +202,7 @@ if (bot) {
         "• Категория берётся из хэштега (#женскиетрусы, #пижамы…). Если хэштега нет — пришлю кнопки, выберешь.\n\n" +
         "Команды: /stats — сводка, /hidden — скрытые товары, /tags — список хэштегов.", catalogKb());
     } else {
-      await ctx.reply("Добро пожаловать в Medellin 🤍\nОптовый каталог белья, пижам и халатов.\nОпт от 12 шт · доставка по Казахстану и СНГ.", catalogKb());
+      await ctx.reply(`Добро пожаловать в Medellin 🤍\nОптовый каталог белья, пижам и халатов.\nЗаказ от ${fmt(MIN_ORDER)} ₸ · доставка по Казахстану и СНГ.`, catalogKb());
     }
   });
 
@@ -276,6 +284,11 @@ if (bot) {
         pending.set(ctx.chat.id, { id, field: act === "price" ? "price_per_unit" : "pack_qty", msg });
         await ctx.answerCbQuery();
         return ctx.reply(act === "price" ? "Напиши цену за 1 шт числом, например 650" : "Сколько штук в упаковке? Напиши число, например 12");
+      case "unit": {
+        const next = UNIT_ORDER[(UNIT_ORDER.indexOf(r.unit || "pcs") + 1) % UNIT_ORDER.length];
+        const u = products.update(id, { unit: next });
+        await editCard(msg, u); return ctx.answerCbQuery("Цена " + unitOf(next).per);
+      }
       case "hide": {
         const u = products.update(id, { hidden: r.hidden === 2 ? 0 : 2 });
         await editCard(msg, u); return ctx.answerCbQuery(u.hidden === 2 ? "Скрыт из каталога" : "Показан в каталоге");

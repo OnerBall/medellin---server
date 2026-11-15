@@ -56,7 +56,7 @@ function addColumn(table, col, def) {
   if (!cols.includes(col)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`);
 }
 for (const [c, d] of [["country", "TEXT DEFAULT ''"], ["source", "TEXT"], ["media_group_id", "TEXT"], ["caption", "TEXT DEFAULT ''"],
-  ["admin_msg_id", "INTEGER"], ["updated_at", "INTEGER"]]) addColumn("products", c, d);
+  ["admin_msg_id", "INTEGER"], ["updated_at", "INTEGER"], ["unit", "TEXT"], ["media", "TEXT"]]) addColumn("products", c, d);
 for (const [c, d] of [["comment", "TEXT DEFAULT ''"], ["tg_user_id", "INTEGER"], ["tg_username", "TEXT"]]) addColumn("orders", c, d);
 
 db.exec(`

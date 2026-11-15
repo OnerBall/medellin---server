@@ -7,6 +7,7 @@
 //   💰 Цена оптом: 650тг / шт.
 //   #женскиетрусы
 const { detect } = require("./categories");
+const { detectUnit } = require("./units");
 
 const PACK_DEFAULT = parseInt(process.env.PACK_DEFAULT || "12", 10);
 
@@ -85,7 +86,8 @@ function parseCaption(caption) {
     .slice(0, 800);
 
   const category = detect(hashtags, name + " " + raw);
-  return { name, price, pack, packGuessed, sizes, colors, country, description, hashtags, category };
+  const unit = detectUnit(priceLine, name);
+  return { name, price, pack, packGuessed, sizes, colors, country, description, hashtags, category, unit };
 }
 
 module.exports = { parseCaption, PACK_DEFAULT };

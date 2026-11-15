@@ -7,6 +7,7 @@ const products = require("../products");
 const { notifyNewOrder } = require("../bot");
 
 const router = express.Router();
+const MIN_ORDER = parseInt(process.env.MIN_ORDER || "50000", 10);
 
 // Проверка подписи Telegram initData — так мы знаем, кто оформил заказ
 function tgUser(initData) {
@@ -44,9 +45,10 @@ router.post("/api/orders", async (req, res) => {
     if (!r.in_stock) return res.status(409).json({ error: `«${r.name}» сейчас нет в наличии` });
     const sizes = JSON.parse(r.sizes || "[]");
     const size = sizes.includes(it.size) ? it.size : "";
-    items.push({ id: r.id, name: r.name, size, qty, pack: r.pack_qty, price: r.price_per_unit });
+    items.push({ id: r.id, name: r.name, size, qty, pack: r.pack_qty, price: r.price_per_unit, unit: r.unit || "pcs" });
   }
   const total = items.reduce((s, i) => s + i.price * i.pack * i.qty, 0);
+  if (total < MIN_ORDER) return res.status(400).json({ error: `Минимальная сумма заказа — ${MIN_ORDER.toLocaleString("ru-RU").replace(/\u00a0/g, " ")} ₸` });
   const user = tgUser(b.initData);
   const id = String(Date.now()).slice(-6);
   const row = {

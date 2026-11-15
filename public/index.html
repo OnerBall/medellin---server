@@ -51,6 +51,18 @@ h2 button{font-family:Inter;font-size:14px;color:var(--gold);font-weight:500}
 .sec:first-child{grid-column:1/3;height:172px}
 .sec .ph{position:absolute;inset:0;background-size:cover;background-position:center}
 .sec::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(22,5,7,0) 30%,rgba(22,5,7,.9) 100%)}
+.sat-men{background:radial-gradient(120% 80% at 20% 10%,rgba(170,205,255,.28),transparent 45%),radial-gradient(90% 70% at 85% 80%,rgba(10,30,80,.9),transparent 60%),linear-gradient(125deg,#123270 0%,#2C62B8 32%,#14367A 58%,#2452A0 78%,#0C2252 100%)}
+.sat-kids{background:radial-gradient(120% 80% at 20% 10%,rgba(255,255,240,.7),transparent 45%),radial-gradient(90% 70% at 85% 80%,rgba(230,195,110,.6),transparent 60%),linear-gradient(125deg,#F8EBB8 0%,#FFF6D2 32%,#EED892 58%,#FBEDBE 78%,#E6CC82 100%)}
+.sec-men{box-shadow:inset 0 0 0 1px rgba(140,180,255,.45),0 10px 26px rgba(0,0,0,.45)}
+.sec-men::after{background:linear-gradient(180deg,rgba(12,34,82,0) 30%,rgba(12,34,82,.92) 100%)}
+.sec-men small{color:#A9C8FF}
+.sec-kids{box-shadow:inset 0 0 0 1px rgba(255,230,160,.6),0 10px 26px rgba(0,0,0,.45)}
+.sec-kids::after{background:linear-gradient(180deg,rgba(248,235,184,0) 30%,rgba(246,228,170,.95) 100%)}
+.sec-kids span{color:#3E2B08}.sec-kids small{color:#8A6418}
+.minbar{padding:14px 16px;margin:-6px 0 18px;border-radius:16px;background:rgba(217,178,111,.1);box-shadow:inset 0 0 0 1px rgba(217,178,111,.35);font-size:14px;color:var(--cream)}
+.minbar .track{height:6px;border-radius:3px;background:rgba(245,235,221,.1);margin-top:10px;overflow:hidden}
+.minbar .track i{display:block;height:100%;border-radius:3px;background:linear-gradient(90deg,#B98E48,#F0D49A)}
+.card .play{position:absolute;right:10px;top:10px;width:30px;height:30px;border-radius:50%;background:rgba(22,5,7,.6);display:grid;place-items:center;color:#fff;font-size:12px}
 .sec span{position:absolute;left:16px;bottom:14px;z-index:1;font-family:Playfair,Georgia,serif;font-size:24px}
 .sec small{position:absolute;right:14px;bottom:18px;z-index:1;font-size:12px;color:var(--gold)}
 .sec:not(:first-child) span{bottom:32px;font-size:22px}.sec:not(:first-child) small{left:16px;right:auto;bottom:12px}
@@ -80,8 +92,10 @@ h2 button{font-family:Inter;font-size:14px;color:var(--gold);font-weight:500}
 .gallery{position:relative;margin:-16px -16px 0;aspect-ratio:4/5;overflow:hidden;background:#2A0A0F}
 .gallery .track{display:flex;height:100%;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none}
 .gallery .track::-webkit-scrollbar{display:none}
-.gallery .track div{flex:0 0 100%;height:100%;background:center/cover;scroll-snap-align:start}
-.gallery::after{content:"";position:absolute;left:0;right:0;bottom:0;height:110px;background:linear-gradient(180deg,transparent,var(--bg));pointer-events:none}
+.gallery .track>*{flex:0 0 100%;height:100%;scroll-snap-align:start}
+.gallery .track div{background:center/cover}
+.gallery .track video{width:100%;height:100%;object-fit:cover;background:#000;display:block}
+.gallery::after{content:"";position:absolute;left:0;right:0;bottom:0;height:60px;background:linear-gradient(180deg,transparent,var(--bg));pointer-events:none}
 .gallery .nav{position:absolute;top:16px;left:16px;right:16px;display:flex;justify-content:space-between;z-index:2;pointer-events:none}
 .gallery .nav .icon-btn{background:rgba(22,5,7,.55);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);pointer-events:auto}
 .dots{position:absolute;bottom:22px;left:0;right:0;display:flex;justify-content:center;gap:6px;z-index:2}
@@ -193,8 +207,8 @@ function render() {
 const tabs = (on) => `<nav class="tabs">${[["home", "Главная", I.home], ["cat", "Каталог", I.grid], ["cart", "Корзина", I.cart], ["profile", "Профиль", I.user]]
   .map(([k, l, s]) => `<button class="tab ${on === k ? "on" : ""}" data-tab="${k}">${s}${l}${k === "cart" && cartCount() ? `<span class="badge">${cartCount()}</span>` : ""}</button>`).join("")}</nav>`;
 
-const card = (p) => `<button class="card" data-p="${p.id}"><div class="img" style="background-image:url('${p.photos[0]}')">${!p.inStock ? '<span class="tag out">Нет в наличии</span>' : p.isNew ? '<span class="tag">Новинка</span>' : ""}</div>
-  <div class="b"><div class="n">${esc(p.name)}</div><div class="p">${money(p.price)} ₸ / шт</div><div class="q">упаковка ${p.pack} шт</div></div>${p.inStock ? `<span class="add" data-add="${p.id}" role="button" aria-label="В корзину">+</span>` : ""}</button>`;
+const card = (p) => `<button class="card" data-p="${p.id}"><div class="img" style="background-image:url('${p.photos[0]}')">${p.hasVideo ? '<span class="play">▶</span>' : ""}${!p.inStock ? '<span class="tag out">Нет в наличии</span>' : p.isNew ? '<span class="tag">Новинка</span>' : ""}</div>
+  <div class="b"><div class="n">${esc(p.name)}</div><div class="p">${money(p.price)} ₸ / ${p.unit.label}</div><div class="q">упаковка ${p.pack} ${plural(p.pack, ...p.unit.forms)}</div></div>${p.inStock ? `<span class="add" data-add="${p.id}" role="button" aria-label="В корзину">+</span>` : ""}</button>`;
 
 const emptyCatalog = () => `<div class="empty"><b>Каталог наполняется</b>Скоро здесь появятся товары. А пока — пишите нам в WhatsApp.</div>`;
 
@@ -212,9 +226,9 @@ const VIEWS = {
     }
     const news = d.products.filter((p) => p.inStock).slice(0, 10);
     return head + `
-      <div class="banner satin"><b>Опт от ${d.shop.minPack} шт</b><p>Доставка по Казахстану и СНГ</p><button class="pill" data-tab="cat">Смотреть каталог</button><img src="img/logo.png" alt=""></div>
+      <div class="banner satin"><b>Заказ от ${money(d.shop.minOrder)} ₸</b><p>Опт · доставка по Казахстану и СНГ</p><button class="pill" data-tab="cat">Смотреть каталог</button><img src="img/logo.png" alt=""></div>
       <h2>Разделы</h2>
-      <div class="sections">${d.sections.map((s) => `<button class="sec" data-sec="${s.key}"><div class="ph ${s.cover ? "" : "satin"}" ${s.cover ? `style="background-image:url('${s.cover}')"` : ""}></div><span>${s.title}</span><small>${s.count ? s.count + " " + plural(s.count, "товар", "товара", "товаров") + " →" : "скоро"}</small></button>`).join("")}</div>
+      <div class="sections">${d.sections.map((s) => `<button class="sec sec-${s.key}" data-sec="${s.key}"><div class="ph ${s.cover ? "" : s.key === "men" ? "sat-men" : s.key === "kids" ? "sat-kids" : "satin"}" ${s.cover ? `style="background-image:url('${s.cover}')"` : ""}></div><span>${s.title}</span><small>${s.count ? s.count + " " + plural(s.count, "товар", "товара", "товаров") + " →" : "скоро"}</small></button>`).join("")}</div>
       ${news.length ? `<h2>Новинки <button data-tab="cat">Все →</button></h2><div class="hrow">${news.map(card).join("")}</div>` : emptyCatalog()}`;
   },
   catalog() {
@@ -236,13 +250,13 @@ const VIEWS = {
   product({ id, size }) {
     const p = byId(id); if (!p) return `<div class="empty"><b>Товар не найден</b>Возможно, его уже убрали из каталога</div>`;
     const qty = S.pqty || 1;
-    const info = [["Раздел", `${(sec(p.section) || {}).title} · ${catTitle(p.category)}`], p.country && ["Производство", p.country], ["В упаковке", `${p.pack} шт`], ["Доставка", "Казахстан и СНГ"]].filter(Boolean);
-    return `<div class="gallery"><div class="track" id="track">${p.photos.map((u) => `<div style="background-image:url('${u}')"></div>`).join("")}</div>
+    const info = [["Раздел", `${(sec(p.section) || {}).title} · ${catTitle(p.category)}`], p.country && ["Производство", p.country], ["В упаковке", `${p.pack} ${plural(p.pack, ...p.unit.forms)}`], ["Доставка", "Казахстан и СНГ"]].filter(Boolean);
+    return `<div class="gallery"><div class="track" id="track">${p.media.map((m) => m.type === "video" ? `<video src="${m.src}" ${m.poster ? `poster="${m.poster}"` : ""} playsinline controls preload="metadata"></video>` : `<div style="background-image:url('${m.src}')"></div>`).join("")}</div>
       <div class="nav"><button class="icon-btn" data-back aria-label="Назад">${I.back}</button><button class="icon-btn" data-share aria-label="Поделиться">${I.share}</button></div>
-      ${p.photos.length > 1 ? `<div class="dots">${p.photos.map((_, i) => `<i class="${i ? "" : "on"}"></i>`).join("")}</div>` : ""}</div>
+      ${p.media.length > 1 ? `<div class="dots">${p.media.map((_, i) => `<i class="${i ? "" : "on"}"></i>`).join("")}</div>` : ""}</div>
       <div class="pname">${esc(p.name)}</div>
-      <div class="prices"><b>${money(p.price)} ₸</b><span>за штуку</span></div>
-      <div class="pack glass"><div><small>Цена за упаковку · ${p.pack} шт</small><b>${money(p.price * p.pack)} ₸</b></div><span style="color:var(--rose);font-size:13px;font-weight:600">${p.inStock ? "Опт" : "Нет в наличии"}</span></div>
+      <div class="prices"><b>${money(p.price)} ₸</b><span>${p.unit.per}</span></div>
+      <div class="pack glass"><div><small>Цена за упаковку · ${p.pack} ${plural(p.pack, ...p.unit.forms)}</small><b>${money(p.price * p.pack)} ₸</b></div><span style="color:var(--rose);font-size:13px;font-weight:600">${p.inStock ? "Опт" : "Нет в наличии"}</span></div>
       ${p.sizes.length ? `<div class="lbl">Размер${p.sizes.length > 1 ? " — выберите" : ""}</div><div class="sizes">${p.sizes.map((z) => `<button class="size ${size === z ? "on" : ""}" data-psize="${esc(z)}">${esc(z)}</button>`).join("")}</div>` : ""}
       ${p.colors.length ? `<div class="lbl">Цвета</div><div class="colors">${p.colors.map((c) => `<i style="background:${esc(c.hex)}" title="${esc(c.name)}"></i>`).join("")}</div>` : ""}
       <div class="info glass">${info.map(([a, b]) => `<div><span>${a}</span><span>${esc(b)}</span></div>`).join("")}</div>
@@ -258,16 +272,18 @@ const VIEWS = {
     const f = S.form;
     return `<div class="back"><button class="icon-btn glass" data-back aria-label="Назад">${I.back}</button><h1>Корзина</h1></div>
       ${S.cart.map((i, k) => { const p = byId(i.id); return `<div class="citem glass"><div class="img" style="background-image:url('${p.photos[0]}')"></div>
-        <div class="m"><b>${esc(p.name)}</b><small>${i.size ? esc(i.size) + " · " : ""}${p.pack} шт в упаковке · ${money(p.price)} ₸/шт</small><span class="s">${money(p.price * p.pack * i.qty)} ₸</span></div>
+        <div class="m"><b>${esc(p.name)}</b><small>${i.size ? esc(i.size) + " · " : ""}${p.pack} ${plural(p.pack, ...p.unit.forms)} в упаковке · ${money(p.price)} ₸/${p.unit.label}</small><span class="s">${money(p.price * p.pack * i.qty)} ₸</span></div>
         <div class="stepper"><button data-cq="${k}:-1" aria-label="Меньше">−</button><b>${i.qty}</b><button data-cq="${k}:1" aria-label="Больше">+</button></div></div>`; }).join("")}
-      <div class="total"><div><small>Итого · ${cartCount()} упак. · ${S.cart.reduce((a, i) => a + i.qty * (byId(i.id) || {}).pack, 0)} шт</small><b>${money(total)} ₸</b></div></div>
+      <div class="total"><div><small>Итого · ${cartCount()} упак.</small><b>${money(total)} ₸</b></div></div>
+      ${total < S.data.shop.minOrder ? `<div class="minbar">Минимальная сумма заказа — <b>${money(S.data.shop.minOrder)} ₸</b>. Добавьте ещё на <b class="gold">${money(S.data.shop.minOrder - total)} ₸</b>
+        <div class="track"><i style="width:${Math.min(100, total / S.data.shop.minOrder * 100)}%"></i></div></div>` : ""}
       <div class="lbl">Данные для заказа</div>
       <input class="field" id="f_name" placeholder="Имя" value="${esc(f.name || (tg && tg.initDataUnsafe.user ? tg.initDataUnsafe.user.first_name : ""))}" autocomplete="name">
       <input class="field" id="f_phone" placeholder="Телефон, WhatsApp" value="${esc(f.phone || "+7 ")}" inputmode="tel" autocomplete="tel">
       <input class="field" id="f_city" placeholder="Город" value="${esc(f.city || "")}" autocomplete="address-level2">
       <input class="field" id="f_country" placeholder="Страна" value="${esc(f.country || "Казахстан")}">
       <textarea class="field" id="f_comment" placeholder="Комментарий (необязательно)">${esc(f.comment || "")}</textarea>
-      <div class="bar"><button class="btn" id="order">Оформить заказ · ${money(total)} ₸</button></div>`;
+      <div class="bar">${total < S.data.shop.minOrder ? `<button class="btn" data-tab="cat">Добавить товары · ещё ${money(S.data.shop.minOrder - total)} ₸</button>` : `<button class="btn" id="order">Оформить заказ · ${money(total)} ₸</button>`}</div>`;
   },
   done({ id, total }) {
     return `<div class="done"><img src="img/logo.png" style="width:64px;border-radius:50%" alt=""><div class="check">${I.check}</div><h1>Заказ принят!</h1>
@@ -281,7 +297,7 @@ const VIEWS = {
       <div class="glass" style="padding:18px;display:flex;gap:14px;align-items:center;margin-bottom:14px"><img src="img/logo.png" style="width:56px;border-radius:50%" alt="">
         <div><b style="font-size:18px">${esc(u ? [u.first_name, u.last_name].filter(Boolean).join(" ") : "Покупатель")}</b><div class="muted" style="font-size:14px;margin-top:3px">Оптовый покупатель Medellin</div></div></div>
       <div class="lbl">Как мы работаем</div>
-      <div class="info glass"><div><span>Минимальный заказ</span><span>от ${S.data.shop.minPack} шт</span></div><div><span>Доставка</span><span>Казахстан и СНГ</span></div><div><span>Оплата</span><span>после подтверждения в WhatsApp</span></div></div>
+      <div class="info glass"><div><span>Минимальный заказ</span><span>от ${money(S.data.shop.minOrder)} ₸</span></div><div><span>Доставка</span><span>Казахстан и СНГ</span></div><div><span>Оплата</span><span>после подтверждения в WhatsApp</span></div></div>
       <div class="lbl">Связь</div>
       <div class="links glass"><button data-wa="Здравствуйте! У меня вопрос по каталогу Medellin.">Написать в WhatsApp <span>→</span></button>
       ${S.data.shop.channel ? `<button data-link="${esc(S.data.shop.channel)}">Наш Telegram-канал <span>→</span></button>` : ""}</div>`;
@@ -318,7 +334,7 @@ function bind(cur) {
   if (cur.name === "product") {
     const p = byId(cur.params.id); if (!p) return;
     const tr = $("#track");
-    if (tr) tr.onscroll = () => { const i = Math.round(tr.scrollLeft / tr.clientWidth); app.querySelectorAll(".dots i").forEach((d, k) => d.classList.toggle("on", k === i)); };
+    if (tr) tr.onscroll = () => { const i = Math.round(tr.scrollLeft / tr.clientWidth); app.querySelectorAll(".dots i").forEach((d, k) => d.classList.toggle("on", k === i)); tr.querySelectorAll("video").forEach((v) => { if (tr.children[i] !== v) v.pause(); }); };
     app.querySelectorAll("[data-psize]").forEach((b) => (b.onclick = () => { haptic(); go("product", { ...cur.params, size: b.dataset.psize }, true); }));
     app.querySelectorAll("[data-pq]").forEach((b) => (b.onclick = () => { haptic(); S.pqty = Math.max(1, (S.pqty || 1) + +b.dataset.pq); go("product", cur.params, true); }));
     const share = app.querySelector("[data-share]");
