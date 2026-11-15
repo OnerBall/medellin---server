@@ -302,7 +302,8 @@ const VIEWS = {
     return `<div class="done"><img src="img/logo.png" style="width:64px;border-radius:50%" alt=""><div class="check">${I.check}</div><h1>Заказ принят!</h1>
       <p>Заказ №${esc(id)} на ${money(total)} ₸.<br>Мы напишем вам в WhatsApp в ближайшее время.</p>
       <div style="width:100%;display:grid;gap:10px;margin-top:10px"><button class="btn" data-wa="${esc(wa || `Здравствуйте! Я оформил(а) заказ №${id} в каталоге Medellin.`)}">${I.wa}Отправить заказ в WhatsApp</button>
-      <button class="btn ghost" data-tab="home">Вернуться в каталог</button></div></div>`;
+      <button class="btn ghost" data-tab="home">Вернуться в каталог</button>
+      ${tg && tg.initData ? `<button class="btn ghost" id="cancelorder" data-id="${esc(id)}" style="color:var(--rose);box-shadow:none;height:44px;font-weight:600">Передумали? Отменить заказ</button>` : ""}</div></div>`;
   },
   country() {
     const lang = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.language_code) || navigator.language || "";
@@ -352,6 +353,20 @@ function bind(cur) {
     const c = ctry(); if (c) { S.form = { ...S.form, phone: S.form.phone && S.form.phone.replace(/\D/g, "").length > 4 ? S.form.phone : c.phone, country: c.name }; store.set("medellin_form", { ...S.form, comment: "" }); }
     if (S.stack.length > 1) back(); else { S.stack = [{ name: "home", params: {} }]; render(); }
   }));
+  const co = $("#cancelorder");
+  if (co) co.onclick = () => {
+    const doIt = async (ok) => { if (!ok) return;
+      co.disabled = true;
+      const r = await fetch("/api/orders/cancel", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: co.dataset.id, initData: tg.initData }) });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok) {
+        haptic("ok");
+        app.innerHTML = `<div class="done"><img src="img/logo.png" style="width:64px;border-radius:50%" alt=""><h1>Заказ отменён</h1><p>Заказ №${esc(co.dataset.id)} отменён. Если передумаете — оформите новый 🤍</p><div style="width:100%;margin-top:10px"><button class="btn" data-tab="home" style="width:100%">Вернуться в каталог</button></div></div>`;
+        bind({ name: "done", params: {} });
+      } else { haptic("err"); toast(d.error || "Не получилось отменить"); co.disabled = false; }
+    };
+    if (tg.showConfirm) tg.showConfirm(`Отменить заказ №${co.dataset.id}?`, doIt); else doIt(confirm("Отменить заказ?"));
+  };
   const cc = $("#clearcart");
   if (cc) cc.onclick = () => { const go2 = (ok) => { if (!ok) return; S.cart = []; saveCart(); haptic("ok"); render(); }; if (tg && tg.showConfirm) tg.showConfirm("Очистить корзину?", go2); else go2(confirm("Очистить корзину?")); };
   if ($("#myorders") && tg && tg.initData) loadMyOrders();
