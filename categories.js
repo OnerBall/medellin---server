@@ -25,6 +25,7 @@ const CATEGORIES = [
   { key: "k_boys_panties", section: "kids", title: "Трусы для мальчиков", tag: "трусымальчикам" },
   { key: "k_girls_tops", section: "kids", title: "Майки для девочек", tag: "майкидевочкам" },
   { key: "k_boys_tops", section: "kids", title: "Майки для мальчиков", tag: "майкимальчикам" },
+  { key: "k_girls_croptops", section: "kids", title: "Топы для девочек", tag: "топыдевочкам", alt: ["топдевочкам"] },
   { key: "k_thermo", section: "kids", title: "Термобельё", tag: "термодетское" }
 ];
 
@@ -50,7 +51,7 @@ function detect(hashtags, text) {
   if (/термо/.test(t)) return kid ? "k_thermo" : men ? "m_thermo" : /женск/.test(t) ? "w_thermo" : null;
   if (/пижам/.test(t)) return "w_pajamas";
   if (/лосин|панталон|леггин|легинс/.test(t) && !kid && !men) return "w_leggings";
-  if (/(^|[^а-я])топ(ы|ик|ики)?([^а-я]|$)/.test(t) && !kid && !men) return "w_croptops";
+  if (/(^|[^а-я])топ(ы|ик|ики)?([^а-я]|$)/.test(t) && !men) return kid ? (girl || !/мальч/.test(t) ? "k_girls_croptops" : null) : "w_croptops";
   if (/халат/.test(t)) return "w_robes";
   if (/комплект|набор/.test(t)) return "w_sets";
   if (/майк/.test(t)) return kid ? (girl ? "k_girls_tops" : /мальч/.test(t) ? "k_boys_tops" : null) : men ? "m_tops" : /женск/.test(t) ? "w_tops" : null;
