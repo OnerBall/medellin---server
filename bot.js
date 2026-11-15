@@ -281,8 +281,13 @@ if (bot) {
 
   command("pay", async (ctx) => {
     if (!isAdmin(ctx.from.id)) return;
-    const m = (ctx.message.text || "").match(/^\/pay(?:@\w+)?\s+(kz|cis)\s+([\s\S]+)$/i);
-    if (m) { setSetting("pay_" + m[1].toLowerCase(), m[2].trim()); return ctx.reply(`✅ Реквизиты для ${m[1].toLowerCase() === "kz" ? "Казахстана" : "СНГ"} сохранены`); }
+    // можно одной командой или несколькими «/pay kz …» и «/pay cis …» в одном сообщении
+    const parts = [...(ctx.message.text || "").matchAll(/\/pay(?:@\w+)?\s+(kz|cis)\s+([\s\S]*?)(?=\n?\s*\/pay(?:@\w+)?\s+(?:kz|cis)\s|$)/gi)];
+    if (parts.length) {
+      const saved = [];
+      for (const [, k, v] of parts) if (v.trim()) { setSetting("pay_" + k.toLowerCase(), v.trim()); saved.push(k.toLowerCase() === "kz" ? "🇰🇿 Казахстан" : "🌍 СНГ"); }
+      if (saved.length) return ctx.reply(`✅ Реквизиты сохранены: ${saved.join(", ")}\nПроверить: /pay`);
+    }
     await ctx.reply(`💳 Реквизиты в счёте:\n\n🇰🇿 Казахстан:\n${getSetting("pay_kz") || "— не заданы"}\n\n🌍 СНГ:\n${getSetting("pay_cis") || "— (будут как для Казахстана)"}\n\nИзменить:\n/pay kz Kaspi: +7 778 … (Ерлан Ж.)\n/pay cis Перевод на карту Kaspi 4400 … через ваш банк или Золотая Корона`);
   });
 
