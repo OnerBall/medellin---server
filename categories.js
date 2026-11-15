@@ -15,6 +15,7 @@ const CATEGORIES = [
   { key: "w_pajamas", section: "women", title: "Пижамы", tag: "пижамы" },
   { key: "w_robes", section: "women", title: "Халаты", tag: "халаты" },
   { key: "w_sets", section: "women", title: "Комплекты", tag: "комплекты" },
+  { key: "w_leggings", section: "women", title: "Лосины и панталоны", tag: "лосины", alt: ["панталоны", "леггинсы"] },
   { key: "w_thermo", section: "women", title: "Термобельё", tag: "терможенское" },
   { key: "m_briefs", section: "men", title: "Трусы", tag: "мужскиетрусы" },
   { key: "m_tops", section: "men", title: "Майки", tag: "мужскиемайки" },
@@ -27,7 +28,7 @@ const CATEGORIES = [
 ];
 
 const BY_KEY = Object.fromEntries(CATEGORIES.map((c) => [c.key, c]));
-const BY_TAG = Object.fromEntries(CATEGORIES.map((c) => [c.tag, c]));
+const BY_TAG = Object.fromEntries(CATEGORIES.flatMap((c) => [c.tag, ...(c.alt || [])].map((t) => [t, c])));
 const SECTION_TITLE = Object.fromEntries(SECTIONS.map((s) => [s.key, s.title]));
 
 function label(key) {
@@ -47,6 +48,7 @@ function detect(hashtags, text) {
   const men = /мужск/.test(t);
   if (/термо/.test(t)) return kid ? "k_thermo" : men ? "m_thermo" : /женск/.test(t) ? "w_thermo" : null;
   if (/пижам/.test(t)) return "w_pajamas";
+  if (/лосин|панталон|леггин|легинс/.test(t) && !kid && !men) return "w_leggings";
   if (/халат/.test(t)) return "w_robes";
   if (/комплект|набор/.test(t)) return "w_sets";
   if (/майк/.test(t)) return kid ? (girl ? "k_girls_tops" : /мальч/.test(t) ? "k_boys_tops" : null) : men ? "m_tops" : /женск/.test(t) ? "w_tops" : null;

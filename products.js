@@ -17,6 +17,16 @@ for (const r of db.prepare("SELECT id, caption, name FROM products WHERE unit IS
   db.prepare("UPDATE products SET unit=? WHERE id=?").run(p.unit || detectUnit("", r.name), r.id);
 }
 
+// товары без категории — пробуем определить снова (после добавления новых категорий)
+{
+  const { detect } = require("./categories");
+  for (const r of db.prepare("SELECT id, caption, name, price_per_unit, photos FROM products WHERE category IS NULL").all()) {
+    const p = parseCaption(r.caption || "");
+    const cat = p.category || detect([], r.name);
+    if (cat) db.prepare("UPDATE products SET category=?, hidden=CASE WHEN hidden=1 AND price_per_unit>0 AND photos!='[]' THEN 0 ELSE hidden END WHERE id=?").run(cat, r.id);
+  }
+}
+
 function get(id) {
   return db.prepare("SELECT * FROM products WHERE id = ?").get(id);
 }
