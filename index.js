@@ -32,7 +32,7 @@ async function start() {
         .catch((e) => console.warn("[bot] menu button:", e.message));
     }
   }
-  app.listen(PORT, () => console.log(`[server] порт ${PORT}, каталог: ${WEBAPP_URL || "(нет домена)"}`));
+  app.listen(PORT, () => console.log(`[server] порт ${PORT}, каталог: ${WEBAPP_URL || "(нет домена)"}, база: ${require("./db").DB_PATH}`));
 }
 
 start();

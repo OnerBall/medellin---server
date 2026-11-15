@@ -234,6 +234,15 @@ async function notifyNewOrder(o) {
   }
 }
 
+// где лежит база: на диске Railway (Volume) или внутри контейнера (стирается при обновлении)
+function diskInfo() {
+  const path = require("path");
+  const real = path.resolve(db.DB_PATH);
+  const mount = process.env.RAILWAY_VOLUME_MOUNT_PATH;
+  const onDisk = mount ? real.startsWith(path.resolve(mount) + path.sep) : null;
+  return `💾 База: ${real}\n` + (onDisk === null ? "ℹ️ Диск Railway не найден" : onDisk ? "✅ На диске — не пропадёт при обновлениях" : `⚠️ НЕ на диске (${mount}) — исправь DB_PATH на ${mount}/medellin.db`);
+}
+
 // ---------- обработчики ----------
 const pending = new Map(); // chatId -> { id, field, msg }
 // команды регистрируем и как обычные, и как текст «/pay …» — на случай, если команду
@@ -260,7 +269,7 @@ if (bot) {
     const all = db.prepare("SELECT * FROM products").all();
     const pub = all.filter(products.isPublic).length;
     const orders = db.prepare("SELECT COUNT(*) n, COALESCE(SUM(total_kzt),0) s FROM orders WHERE status!='cancelled'").get();
-    await ctx.reply(`📊 Товаров: ${all.length}\n✅ В каталоге: ${pub}\n🙈 Скрыто: ${all.length - pub}\n\n🛒 Заказов: ${orders.n} на ${fmt(orders.s)} ₸`, catalogKb());
+    await ctx.reply(`📊 Товаров: ${all.length}\n✅ В каталоге: ${pub}\n🙈 Скрыто: ${all.length - pub}\n\n🛒 Заказов: ${orders.n} на ${fmt(orders.s)} ₸\n\n${diskInfo()}`, catalogKb());
   });
 
   command("hidden", async (ctx) => {
