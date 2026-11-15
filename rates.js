@@ -16,6 +16,7 @@ const DEFAULTS = { KGS: 5.9, UZS: 0.041, RUB: 6.3, TJS: 47 };
 db.exec(`CREATE TABLE IF NOT EXISTS rates (code TEXT PRIMARY KEY, value REAL NOT NULL, manual INTEGER NOT NULL DEFAULT 0, updated_at INTEGER)`);
 const cols = db.prepare("PRAGMA table_info(rates)").all().map((c) => c.name);
 if (!cols.includes("manual")) db.exec("ALTER TABLE rates ADD COLUMN manual INTEGER NOT NULL DEFAULT 0");
+if (!cols.includes("source")) db.exec("ALTER TABLE rates ADD COLUMN source TEXT");
 for (const [code, value] of Object.entries(DEFAULTS))
   db.prepare("INSERT OR IGNORE INTO rates (code, value, manual, updated_at) VALUES (?, ?, 0, 0)").run(code, value);
 
@@ -26,7 +27,7 @@ function rate(cur) {
 }
 
 function allRates() {
-  return db.prepare("SELECT code, value, manual, updated_at FROM rates ORDER BY code").all();
+  return db.prepare("SELECT code, value, manual, source, updated_at FROM rates ORDER BY code").all();
 }
 
 function setManual(cur, value) {
@@ -54,7 +55,7 @@ function countryByPhone(phone) {
 }
 
 // курсы Нацбанка РК (RSS): <title>KGS</title> … <description>5.93</description> … <quant>1</quant>
-async function refresh() {
+async function refresh(skip = []) {
   try {
     const resp = await fetch("https://nationalbank.kz/rss/rates_all.xml", { signal: AbortSignal.timeout(15000) });
     if (!resp.ok) throw new Error("HTTP " + resp.status);
@@ -64,8 +65,8 @@ async function refresh() {
       const code = (item.match(/<title>\s*([A-Z]{3})\s*<\/title>/) || [])[1];
       const val = parseFloat((item.match(/<description>\s*([\d.,]+)\s*<\/description>/) || [])[1]?.replace(",", "."));
       const quant = parseFloat((item.match(/<quant>\s*([\d.,]+)\s*<\/quant>/) || [])[1]?.replace(",", ".")) || 1;
-      if (!code || !(code in DEFAULTS) || !(val > 0)) continue;
-      db.prepare("UPDATE rates SET value=?, updated_at=? WHERE code=? AND manual=0").run(val / quant, Date.now(), code);
+      if (!code || !(code in DEFAULTS) || !(val > 0) || skip.includes(code)) continue;
+      db.prepare("UPDATE rates SET value=?, updated_at=?, source='nbk' WHERE code=? AND manual=0").run(val / quant, Date.now(), code);
       n++;
     }
     console.log(`[rates] обновлено по Нацбанку: ${n}`);
@@ -74,9 +75,35 @@ async function refresh() {
   }
 }
 
-function startAutoRefresh() {
-  refresh();
-  setInterval(refresh, 6 * 3600e3).unref();
+// mig.kz: курс обменника (покупка). На главной есть KGS и RUB; строки таблицы вида
+// <tr><td class="buy">4.95</td><td class="currency">KGS</td><td class="sell">5.35</td></tr>
+async function refreshMig() {
+  const resp = await fetch("https://mig.kz/", { signal: AbortSignal.timeout(15000), headers: { "User-Agent": "Mozilla/5.0 MedellinBot" } });
+  if (!resp.ok) throw new Error("mig HTTP " + resp.status);
+  const html = await resp.text();
+  const got = {};
+  for (const row of html.match(/<tr[^>]*>[\s\S]*?<\/tr>/gi) || []) {
+    const cells = [...row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)].map((m) => m[1].replace(/<[^>]+>/g, "").trim());
+    const i = cells.findIndex((c) => /^[A-Z]{3}$/.test(c));
+    if (i < 1 || !(cells[i] in DEFAULTS)) continue;
+    const buy = parseFloat(String(cells[i - 1]).replace(",", "."));
+    if (buy > 0 && !got[cells[i]]) got[cells[i]] = buy;
+  }
+  for (const [code, v] of Object.entries(got)) db.prepare("UPDATE rates SET value=?, updated_at=?, source='mig' WHERE code=? AND manual=0").run(v, Date.now(), code);
+  return Object.keys(got);
 }
 
-module.exports = { COUNTRIES, BY_CODE, rate, allRates, setManual, convert, countryByPhone, refresh, startAutoRefresh };
+async function refreshAll() {
+  let mig = [];
+  if ((process.env.RATES_SOURCE || "mig") === "mig") {
+    try { mig = await refreshMig(); console.log("[rates] mig.kz:", mig.join(", ") || "ничего"); } catch (e) { console.warn("[rates] mig.kz:", e.message); }
+  }
+  await refresh(mig); // остальные валюты — по Нацбанку
+}
+
+function startAutoRefresh() {
+  refreshAll();
+  setInterval(refreshAll, 3 * 3600e3).unref();
+}
+
+module.exports = { COUNTRIES, BY_CODE, rate, allRates, setManual, convert, countryByPhone, refresh: refreshAll, startAutoRefresh };

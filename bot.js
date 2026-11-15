@@ -227,14 +227,15 @@ if (bot) {
 
   bot.command("rates", async (ctx) => {
     if (!isAdmin(ctx.from.id)) return;
-    const t = rates.allRates().map((r) => `${r.code}: 1 = ${r.value.toFixed(r.code === "UZS" ? 4 : 2)} ₸${r.manual ? " ✋ вручную" : " · Нацбанк"}`).join("\n");
-    await ctx.reply(`💱 Курсы (тенге за 1 единицу):\n${t}\n\nСвой курс: /rate KGS 6.1\nВернуть авто: /rate KGS auto`);
+    const t = rates.allRates().map((r) => `${r.code}: 1 = ${r.value.toFixed(r.code === "UZS" ? 4 : 2)} ₸${r.manual ? " ✋ вручную" : r.source === "mig" ? " · mig.kz" : r.source === "nbk" ? " · Нацбанк" : " · примерный"}`).join("\n");
+    await ctx.reply(`💱 Курсы (тенге за 1 единицу):\n${t}\n\nСвой курс: /rate KGS 6.1\nВернуть авто: /rate KGS auto\nОбновить сейчас: /rate refresh`);
   });
 
   bot.command("rate", async (ctx) => {
     if (!isAdmin(ctx.from.id)) return;
     const [, code, val] = (ctx.message.text || "").trim().split(/\s+/);
     const cur = String(code || "").toUpperCase();
+    if (cur === "REFRESH") { await rates.refresh(); return ctx.reply("Курсы обновлены — /rates"); }
     if (!["KGS", "UZS", "RUB", "TJS"].includes(cur)) return ctx.reply("Пример: /rate KGS 6.1  (валюты: KGS, UZS, RUB, TJS)");
     if (/^auto$/i.test(val || "")) { rates.setManual(cur, null); await rates.refresh(); return ctx.reply(`${cur}: снова по Нацбанку ✅`); }
     const v = parseFloat(String(val || "").replace(",", "."));
