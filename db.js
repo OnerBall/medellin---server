@@ -4,7 +4,9 @@ const path = require("path");
 const fs = require("fs");
 const Database = require("better-sqlite3");
 
-const DB_PATH = process.env.DB_PATH || path.join(__dirname, "data", "medellin.db");
+// DB_PATH → иначе на диск Railway (Volume) → иначе ./data рядом с кодом (локально)
+const VOL = (process.env.RAILWAY_VOLUME_MOUNT_PATH || "").trim();
+const DB_PATH = (process.env.DB_PATH || "").trim() || (VOL ? path.join(VOL, "medellin.db") : path.join(__dirname, "data", "medellin.db"));
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 
 const db = new Database(DB_PATH);
