@@ -53,6 +53,9 @@ h2 button{font-family:Inter;font-size:14px;color:var(--gold);font-weight:500}
 .sec::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(22,5,7,0) 30%,rgba(22,5,7,.9) 100%)}
 .sat-men{background:radial-gradient(120% 80% at 20% 10%,rgba(170,205,255,.28),transparent 45%),radial-gradient(90% 70% at 85% 80%,rgba(10,30,80,.9),transparent 60%),linear-gradient(125deg,#123270 0%,#2C62B8 32%,#14367A 58%,#2452A0 78%,#0C2252 100%)}
 .sat-kids{background:radial-gradient(120% 80% at 20% 10%,rgba(255,255,240,.7),transparent 45%),radial-gradient(90% 70% at 85% 80%,rgba(230,195,110,.6),transparent 60%),linear-gradient(125deg,#F8EBB8 0%,#FFF6D2 32%,#EED892 58%,#FBEDBE 78%,#E6CC82 100%)}
+.sec-women .ph{background-position:78% 25%}.sec-men .ph{background-position:62% 15%}.sec-kids .ph{background-position:62% 20%}
+.sec-men::after{background:linear-gradient(180deg,rgba(12,34,82,0) 45%,rgba(12,34,82,.92) 100%)!important}
+.sec-kids::after{background:linear-gradient(180deg,rgba(248,235,184,0) 50%,rgba(246,228,170,.95) 100%)!important}
 .sec-men{box-shadow:inset 0 0 0 1px rgba(140,180,255,.45),0 10px 26px rgba(0,0,0,.45)}
 .sec-men::after{background:linear-gradient(180deg,rgba(12,34,82,0) 30%,rgba(12,34,82,.92) 100%)}
 .sec-men small{color:#A9C8FF}
@@ -238,7 +241,7 @@ const VIEWS = {
     return head + `
       <div class="banner satin"><b>Заказ от ${money(d.shop.minOrder)} ₸</b><p>Опт · доставка по Казахстану и СНГ</p><button class="pill" data-tab="cat">Смотреть каталог</button><img src="img/logo.png" alt=""></div>
       <h2>Разделы</h2>
-      <div class="sections">${d.sections.map((s) => `<button class="sec sec-${s.key}" data-sec="${s.key}"><div class="ph ${s.cover ? "" : s.key === "men" ? "sat-men" : s.key === "kids" ? "sat-kids" : "satin"}" ${s.cover ? `style="background-image:url('${s.cover}')"` : ""}></div><span>${s.title}</span><small>${s.count ? s.count + " " + plural(s.count, "товар", "товара", "товаров") + " →" : "скоро"}</small></button>`).join("")}</div>
+      <div class="sections">${d.sections.map((s) => `<button class="sec sec-${s.key}" data-sec="${s.key}"><div class="ph" style="background-image:url('img/sec-${s.key}.jpg')"></div><span>${s.title}</span><small>${s.count ? s.count + " " + plural(s.count, "товар", "товара", "товаров") + " →" : "скоро"}</small></button>`).join("")}</div>
       ${news.length ? `<h2>Новинки <button data-tab="cat">Все →</button></h2><div class="hrow">${news.map(card).join("")}</div>` : emptyCatalog()}`;
   },
   catalog() {
