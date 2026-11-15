@@ -236,6 +236,17 @@ function orderAlbum(o) {
 const CANCELLABLE = ["pending", "contacted", "invoiced"];
 const clientCancelKb = (o) => Markup.inlineKeyboard([[Markup.button.callback("❌ Отменить заказ", `ccl:${o.id}`)], ...(catalogKb("🛍 Вернуться в каталог") ? catalogKb("🛍 Вернуться в каталог").reply_markup.inline_keyboard : [])]);
 
+// клиент отменил заказ (из чата или из каталога)
+function cancelByClient(o) {
+  db.prepare("UPDATE orders SET status='cancelled' WHERE id=?").run(o.id);
+  const u = getOrder(o.id);
+  if (!bot) return u;
+  for (const a of ADMIN_IDS) bot.telegram.sendMessage(a, `❌ Клиент отменил заказ №${o.id}\n👤 ${o.name} · ${o.phone}\n💰 ${fmt(o.total_kzt)} ₸`).catch(() => {});
+  if (u.telegram_chat_id && u.telegram_message_id)
+    bot.telegram.editMessageText(u.telegram_chat_id, u.telegram_message_id, undefined, orderCaption(u) + "\n\n❌ Отменён клиентом", statusKb(u)).catch(() => {});
+  return u;
+}
+
 async function notifyNewOrder(o) {
   if (!bot || !ADMIN_IDS.length) return;
   const album = orderAlbum(o);
@@ -426,12 +437,8 @@ if (bot) {
         await editMsg(`🤍 Заказ №${o.id} в силе!\nСумма: ${fmt(o.total_kzt)} ₸\n\nПроверим наличие и пришлём счёт.`, clientCancelKb(o));
         return ctx.answerCbQuery("Заказ остаётся");
       }
-      db.prepare("UPDATE orders SET status='cancelled' WHERE id=?").run(o.id);
-      const u = getOrder(o.id);
+      cancelByClient(o);
       await editMsg(`❌ Заказ №${o.id} отменён.\nЕсли передумаете — оформите новый в каталоге 🤍`, catalogKb("🛍 Открыть каталог"));
-      for (const a of ADMIN_IDS) bot.telegram.sendMessage(a, `❌ Клиент отменил заказ №${o.id}\n👤 ${o.name} · ${o.phone}\n💰 ${fmt(o.total_kzt)} ₸`).catch(() => {});
-      if (u.telegram_chat_id && u.telegram_message_id)
-        bot.telegram.editMessageText(u.telegram_chat_id, u.telegram_message_id, undefined, orderCaption(u) + "\n\n❌ Отменён клиентом", statusKb(u)).catch(() => {});
       return ctx.answerCbQuery("Заказ отменён");
     }
 
@@ -552,4 +559,4 @@ if (bot) {
 
 const ALLOWED_UPDATES = ["message", "edited_message", "channel_post", "edited_channel_post", "callback_query"];
 
-module.exports = { bot, notifyNewOrder, WEBAPP_URL, ALLOWED_UPDATES, SECTION_TITLE };
+module.exports = { bot, notifyNewOrder, cancelByClient, CANCELLABLE, STATUS_LABELS, WEBAPP_URL, ALLOWED_UPDATES, SECTION_TITLE };

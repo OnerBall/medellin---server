@@ -283,7 +283,7 @@ const VIEWS = {
       <div class="empty"><b>Корзина пуста</b>Добавьте товары из каталога</div><button class="btn" data-tab="cat" style="width:100%">Перейти в каталог</button>`;
     const total = S.cart.reduce((a, i) => { const p = byId(i.id); return a + (p ? p.price * p.pack * i.qty : 0); }, 0);
     const f = S.form;
-    return `<div class="back"><button class="icon-btn glass" data-back aria-label="Назад">${I.back}</button><h1>Корзина</h1></div>
+    return `<div class="back" style="justify-content:space-between"><div style="display:flex;align-items:center;gap:12px"><button class="icon-btn glass" data-back aria-label="Назад">${I.back}</button><h1>Корзина</h1></div><button class="chip" id="clearcart">Очистить</button></div>
       ${S.cart.map((i, k) => { const p = byId(i.id); return `<div class="citem glass"><div class="img" style="background-image:url('${p.photos[0]}')"></div>
         <div class="m"><b>${esc(p.name)}</b><small>${i.size ? esc(i.size) + " · " : ""}${p.pack} ${plural(p.pack, ...p.unit.forms)} в упаковке · ${money(p.price)} ₸/${p.unit.label}</small><span class="s">${money(p.price * p.pack * i.qty)} ₸</span></div>
         <div class="stepper"><button data-cq="${k}:-1" aria-label="Меньше">−</button><b>${i.qty}</b><button data-cq="${k}:1" aria-label="Больше">+</button></div></div>`; }).join("")}
@@ -316,6 +316,8 @@ const VIEWS = {
     return `<div class="back"><h1>Профиль</h1></div>
       <div class="glass" style="padding:18px;display:flex;gap:14px;align-items:center;margin-bottom:14px"><img src="img/logo.png" style="width:56px;border-radius:50%" alt="">
         <div><b style="font-size:18px">${esc(u ? [u.first_name, u.last_name].filter(Boolean).join(" ") : "Покупатель")}</b><div class="muted" style="font-size:14px;margin-top:3px">Оптовый покупатель Medellin</div></div></div>
+      <div class="lbl">Мои заказы</div>
+      <div class="links glass" id="myorders" style="margin-bottom:14px"><div class="muted" style="padding:14px 0;font-size:14px">${tg && tg.initData ? "Загружаем…" : "Откройте каталог через Telegram, чтобы видеть заказы"}</div></div>
       <div class="lbl">Страна и валюта</div>
       <div class="links glass"><button data-go-country>${ctry() ? `${ctry().flag} ${esc(ctry().name)} · ${esc(ctry().sym)}` : "Выбрать страну"} <span>Сменить →</span></button></div>
       <div class="lbl">Как мы работаем</div>
@@ -350,6 +352,9 @@ function bind(cur) {
     const c = ctry(); if (c) { S.form = { ...S.form, phone: S.form.phone && S.form.phone.replace(/\D/g, "").length > 4 ? S.form.phone : c.phone, country: c.name }; store.set("medellin_form", { ...S.form, comment: "" }); }
     if (S.stack.length > 1) back(); else { S.stack = [{ name: "home", params: {} }]; render(); }
   }));
+  const cc = $("#clearcart");
+  if (cc) cc.onclick = () => { const go2 = (ok) => { if (!ok) return; S.cart = []; saveCart(); haptic("ok"); render(); }; if (tg && tg.showConfirm) tg.showConfirm("Очистить корзину?", go2); else go2(confirm("Очистить корзину?")); };
+  if ($("#myorders") && tg && tg.initData) loadMyOrders();
   app.querySelectorAll("[data-go-country]").forEach((b) => (b.onclick = () => { haptic(); go("country"); }));
   const q = $("#q");
   if (q) {
@@ -406,6 +411,27 @@ async function submit() {
     haptic("err"); toast(e.message); b.disabled = false; b.textContent = "Оформить заказ";
     if (/закончил|убран|наличии/.test(e.message)) load();
   }
+}
+
+async function loadMyOrders() {
+  const box = $("#myorders"); if (!box) return;
+  try {
+    const r = await fetch("/api/my-orders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ initData: tg.initData }) });
+    const d = await r.json();
+    if (!$("#myorders")) return;
+    box.innerHTML = d.items.length ? d.items.map((o) => `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:13px 0;border-bottom:1px solid var(--line)">
+      <div><b style="font-weight:600">№${esc(o.id)} · ${money(o.total)} ₸</b><div class="muted" style="font-size:13px;margin-top:2px">${new Date(o.date).toLocaleDateString("ru-RU")} · ${esc(o.statusText)}</div></div>
+      ${o.canCancel ? `<button class="chip" data-cancel="${esc(o.id)}" style="color:var(--rose)">Отменить</button>` : ""}</div>`).join("")
+      : `<div class="muted" style="padding:14px 0;font-size:14px">Заказов пока нет</div>`;
+    box.querySelectorAll("[data-cancel]").forEach((b) => (b.onclick = () => {
+      const doIt = async (ok) => { if (!ok) return;
+        const r2 = await fetch("/api/orders/cancel", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: b.dataset.cancel, initData: tg.initData }) });
+        const d2 = await r2.json().catch(() => ({}));
+        if (r2.ok) { haptic("ok"); toast("Заказ отменён"); } else { haptic("err"); toast(d2.error || "Не получилось"); }
+        loadMyOrders(); };
+      if (tg && tg.showConfirm) tg.showConfirm(`Отменить заказ №${b.dataset.cancel}?`, doIt); else doIt(confirm("Отменить заказ?"));
+    }));
+  } catch (e) { box.innerHTML = `<div class="muted" style="padding:14px 0;font-size:14px">Не удалось загрузить заказы</div>`; }
 }
 
 async function load() {

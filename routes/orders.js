@@ -4,7 +4,7 @@ const express = require("express");
 const crypto = require("crypto");
 const db = require("../db");
 const products = require("../products");
-const { notifyNewOrder } = require("../bot");
+const { notifyNewOrder, cancelByClient, CANCELLABLE, STATUS_LABELS } = require("../bot");
 const rates = require("../rates");
 
 const router = express.Router();
@@ -63,6 +63,26 @@ router.post("/api/orders", async (req, res) => {
     VALUES (@id,@country,@name,@phone,@city,@comment,@items,@total_kzt,@status,@tg_user_id,@tg_username,@created_at,@buyer_country,@shown_total,@rate_used)`).run(row);
   notifyNewOrder(row);
   res.json({ id, total, items });
+});
+
+// мои заказы (по подписи Telegram) и отмена неоплаченного
+router.post("/api/my-orders", (req, res) => {
+  const user = tgUser((req.body || {}).initData);
+  if (!user) return res.json({ items: [] });
+  const rows = db.prepare("SELECT * FROM orders WHERE tg_user_id=? ORDER BY created_at DESC LIMIT 20").all(user.id);
+  res.json({ items: rows.map((o) => ({ id: o.id, total: o.total_kzt, date: o.created_at, status: o.status,
+    statusText: (STATUS_LABELS[o.status] || o.status).replace(/^\S+\s/, ""), count: JSON.parse(o.items).length, canCancel: CANCELLABLE.includes(o.status) })) });
+});
+
+router.post("/api/orders/cancel", (req, res) => {
+  const b = req.body || {};
+  const user = tgUser(b.initData);
+  const o = user && db.prepare("SELECT * FROM orders WHERE id=? AND tg_user_id=?").get(String(b.id || ""), user.id);
+  if (!o) return res.status(404).json({ error: "Заказ не найден" });
+  if (o.status === "cancelled") return res.status(409).json({ error: "Заказ уже отменён" });
+  if (!CANCELLABLE.includes(o.status)) return res.status(409).json({ error: "Заказ уже оплачен или отправлен — напишите нам в WhatsApp" });
+  cancelByClient(o);
+  res.json({ ok: true });
 });
 
 module.exports = router;
