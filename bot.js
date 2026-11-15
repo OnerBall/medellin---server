@@ -258,7 +258,7 @@ if (bot) {
         "• Добавь меня админом в канал — каждый новый пост с фото и ценой сразу попадёт в каталог.\n" +
         "• Старые товары: выдели посты в канале и перешли их мне.\n" +
         "• Категория берётся из хэштега (#женскиетрусы, #пижамы…). Если хэштега нет — пришлю кнопки, выберешь.\n\n" +
-        "Команды: /stats — сводка, /hidden — скрытые товары, /tags — хэштеги, /rates — курсы валют, /pay — реквизиты для счёта.", catalogKb());
+        "Команды: /stats — сводка, /hidden — скрытые товары, /tags — хэштеги, /rates — курсы валют, /pay — реквизиты, /post — пост с каталогом в канал.", catalogKb());
     } else {
       await ctx.reply(`Добро пожаловать в Medellin 🤍\nОптовый каталог белья, пижам и халатов.\nЗаказ от ${fmt(MIN_ORDER)} ₸ · доставка по Казахстану и СНГ.`, catalogKb());
     }
@@ -291,6 +291,26 @@ if (bot) {
     await ctx.reply(`💳 Реквизиты в счёте:\n\n🇰🇿 Казахстан:\n${getSetting("pay_kz") || "— не заданы"}\n\n🌍 СНГ:\n${getSetting("pay_cis") || "— (будут как для Казахстана)"}\n\nИзменить:\n/pay kz Kaspi: +7 778 … (Ерлан Ж.)\n/pay cis Перевод на карту Kaspi 4400 … через ваш банк или Золотая Корона`);
   });
 
+  // пост с кнопкой каталога в канал + закреп
+  command("post", async (ctx) => {
+    if (!isAdmin(ctx.from.id)) return;
+    const chId = CHANNEL_ID || getSetting("channel_id");
+    if (!chId) return ctx.reply("Не знаю, какой канал. Опубликуй в канале любой пост (бот должен быть админом) и повтори /post");
+    const link = process.env.CATALOG_LINK || `https://t.me/${ctx.botInfo.username}?startapp`;
+    const caption = `🛍 КАТАЛОГ MEDELLIN\n\nВсе товары в одном месте — без пролистывания канала:\n👩 Женщинам · 👨 Мужчинам · 🧒 Детям\n\n🔎 Поиск, фото и видео, цены в вашей валюте\n📦 Заказ от ${fmt(MIN_ORDER)} ₸ · доставка по Казахстану и СНГ\n\nЖмите кнопку ниже 👇`;
+    const kb = Markup.inlineKeyboard([[Markup.button.url("🛍 Открыть каталог", link)]]);
+    try {
+      const sent = WEBAPP_URL
+        ? await bot.telegram.sendPhoto(chId, { url: `${WEBAPP_URL}/img/sec-women.jpg` }, { caption, ...kb }).catch(() => bot.telegram.sendMessage(chId, caption, kb))
+        : await bot.telegram.sendMessage(chId, caption, kb);
+      let pinned = true;
+      await bot.telegram.pinChatMessage(chId, sent.message_id, { disable_notification: true }).catch(() => { pinned = false; });
+      await ctx.reply(`✅ Пост опубликован${pinned ? " и закреплён" : ". Закрепи его вручную (у бота нет права закреплять)"}.\nСсылка на каталог: ${link}`);
+    } catch (e) {
+      await ctx.reply("Не получилось опубликовать: " + e.message + "\nПроверь, что бот — админ канала с правом публиковать сообщения.");
+    }
+  });
+
   command("rates", async (ctx) => {
     if (!isAdmin(ctx.from.id)) return;
     const t = rates.allRates().map((r) => `${r.code}: 1 = ${r.value.toFixed(r.code === "UZS" ? 4 : 2)} ₸${r.manual ? " ✋ вручную" : r.source === "mig" ? " · mig.kz" : r.source === "nbk" ? " · Нацбанк" : " · примерный"}`).join("\n");
@@ -316,7 +336,11 @@ if (bot) {
     await ctx.reply("Хэштеги для постов:\n\n" + t);
   });
 
-  bot.on("channel_post", (ctx) => collect(ctx.update.channel_post, null, false));
+  bot.on("channel_post", (ctx) => {
+    const ch = ctx.update.channel_post.chat;
+    if (channelAllowed(ch) && getSetting("channel_id") !== String(ch.id)) setSetting("channel_id", String(ch.id));
+    return collect(ctx.update.channel_post, null, false);
+  });
   bot.on("edited_channel_post", (ctx) => collect(ctx.update.edited_channel_post, null, true));
 
   bot.on("message", async (ctx) => {
