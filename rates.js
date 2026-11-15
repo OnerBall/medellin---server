@@ -101,9 +101,18 @@ async function refreshAll() {
   await refresh(mig); // остальные валюты — по Нацбанку
 }
 
+// раз в день: в RATES_HOUR (по Алматы, по умолчанию 10:00) или при запуске, если сегодня ещё не обновляли
+const almatyNow = () => new Date(Date.now() + 5 * 3600e3);
+const today = () => almatyNow().toISOString().slice(0, 10);
 function startAutoRefresh() {
-  refreshAll();
-  setInterval(refreshAll, 3 * 3600e3).unref();
+  const hour = parseInt(process.env.RATES_HOUR || "10", 10);
+  const last = db.prepare("SELECT MAX(updated_at) t FROM rates WHERE manual=0").get().t || 0;
+  let done = last ? new Date(last + 5 * 3600e3).toISOString().slice(0, 10) : "";
+  const tick = () => {
+    if (done !== today() && (almatyNow().getUTCHours() >= hour || !done)) { done = today(); refreshAll(); }
+  };
+  tick();
+  setInterval(tick, 10 * 60e3).unref();
 }
 
 module.exports = { COUNTRIES, BY_CODE, rate, allRates, setManual, convert, countryByPhone, refresh: refreshAll, startAutoRefresh };
