@@ -298,10 +298,10 @@ const VIEWS = {
       <textarea class="field" id="f_comment" placeholder="Комментарий (необязательно)">${esc(f.comment || "")}</textarea>
       <div class="bar">${total < S.data.shop.minOrder ? `<button class="btn" data-tab="cat">Добавить товары · ещё ${money(S.data.shop.minOrder - total)} ₸</button>` : `<button class="btn" id="order">Оформить заказ · ${money(total)} ₸</button>`}</div>`;
   },
-  done({ id, total }) {
+  done({ id, total, wa }) {
     return `<div class="done"><img src="img/logo.png" style="width:64px;border-radius:50%" alt=""><div class="check">${I.check}</div><h1>Заказ принят!</h1>
       <p>Заказ №${esc(id)} на ${money(total)} ₸.<br>Мы напишем вам в WhatsApp в ближайшее время.</p>
-      <div style="width:100%;display:grid;gap:10px;margin-top:10px"><button class="btn" data-wa="Здравствуйте! Я оформил(а) заказ №${esc(id)} в каталоге Medellin.">${I.wa}Написать в WhatsApp</button>
+      <div style="width:100%;display:grid;gap:10px;margin-top:10px"><button class="btn" data-wa="${esc(wa || `Здравствуйте! Я оформил(а) заказ №${id} в каталоге Medellin.`)}">${I.wa}Отправить заказ в WhatsApp</button>
       <button class="btn ghost" data-tab="home">Вернуться в каталог</button></div></div>`;
   },
   country() {
@@ -406,7 +406,7 @@ async function submit() {
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d.error || "Не получилось отправить, попробуйте ещё раз");
     S.cart = []; saveCart(); haptic("ok");
-    S.stack = [{ name: "home", params: {} }, { name: "done", params: { id: d.id, total: d.total } }]; render(); window.scrollTo(0, 0);
+    S.stack = [{ name: "home", params: {} }, { name: "done", params: { id: d.id, total: d.total, wa: d.waText } }]; render(); window.scrollTo(0, 0);
   } catch (e) {
     haptic("err"); toast(e.message); b.disabled = false; b.textContent = "Оформить заказ";
     if (/закончил|убран|наличии/.test(e.message)) load();
