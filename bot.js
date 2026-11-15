@@ -219,17 +219,37 @@ function invoiceText(o) {
 const changed = new Set();
 const waLink = (phone, text) => `https://wa.me/${String(phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(text)}`;
 
+// альбом с фото товаров заказа (до 10), подпись под каждым фото
+function orderAlbum(o) {
+  const items = JSON.parse(o.items);
+  const media = [];
+  items.forEach((i, k) => {
+    const r = products.get(i.id);
+    const ph = r && JSON.parse(r.photos || "[]")[0];
+    if (ph && media.length < 10)
+      media.push({ type: "photo", media: ph, caption: `${k + 1}. ${i.name}${i.size ? ` (${i.size})` : ""} × ${i.qty} уп. — ${fmt(i.price * i.pack * i.qty)} ₸` });
+  });
+  if (media.length) media[0].caption = `🛒 Заказ №${o.id}\n\n` + media[0].caption;
+  return media;
+}
+
+const CANCELLABLE = ["pending", "contacted", "invoiced"];
+const clientCancelKb = (o) => Markup.inlineKeyboard([[Markup.button.callback("❌ Отменить заказ", `ccl:${o.id}`)], ...(catalogKb("🛍 Вернуться в каталог") ? catalogKb("🛍 Вернуться в каталог").reply_markup.inline_keyboard : [])]);
+
 async function notifyNewOrder(o) {
   if (!bot || !ADMIN_IDS.length) return;
+  const album = orderAlbum(o);
   for (const a of ADMIN_IDS) {
     try {
+      if (album.length > 1) await bot.telegram.sendMediaGroup(a, album).catch((e) => console.warn("[bot] альбом:", e.message));
+      else if (album.length === 1) await bot.telegram.sendPhoto(a, album[0].media, { caption: album[0].caption }).catch(() => {});
       const sent = await bot.telegram.sendMessage(a, orderCaption(o), statusKb(o));
       if (a === ADMIN_IDS[0]) db.prepare("UPDATE orders SET telegram_chat_id=?, telegram_message_id=? WHERE id=?").run(sent.chat.id, sent.message_id, o.id);
     } catch (e) { console.error("[bot] заказ админу:", e.message); }
   }
   if (o.tg_user_id) {
     try {
-      await bot.telegram.sendMessage(o.tg_user_id, `🤍 Заказ №${o.id} принят!\nСумма: ${fmt(o.total_kzt)} ₸\n\nПроверим наличие и пришлём счёт. Чек об оплате можно прислать сюда 🤍`, catalogKb("🛍 Вернуться в каталог"));
+      await bot.telegram.sendMessage(o.tg_user_id, `🤍 Заказ №${o.id} принят!\nСумма: ${fmt(o.total_kzt)} ₸\n\nПроверим наличие и пришлём счёт. Чек об оплате можно прислать сюда 🤍\n\nПередумали? Заказ можно отменить кнопкой ниже, пока он не оплачен.`, clientCancelKb(o));
     } catch (e) { /* клиент мог не запускать бота — не страшно */ }
   }
 }
@@ -389,6 +409,32 @@ if (bot) {
     const data = ctx.callbackQuery.data || "";
     const msg = ctx.callbackQuery.message;
     const [act, id, extra] = data.split(":");
+    if (["ccl", "cclok", "cclno"].includes(act)) {
+      const o = getOrder(id);
+      if (!o || Number(o.tg_user_id) !== ctx.from.id) return ctx.answerCbQuery("Заказ не найден");
+      const editMsg = (text, kb) => ctx.editMessageText(text, kb).catch(() => {});
+      if (!CANCELLABLE.includes(o.status)) {
+        await ctx.answerCbQuery(o.status === "cancelled" ? "Заказ уже отменён" : "Заказ уже оплачен или отправлен", { show_alert: o.status !== "cancelled" });
+        if (o.status !== "cancelled") await ctx.reply(`Заказ №${o.id} уже ${o.status === "shipped" ? "отправлен" : "оплачен"}. Чтобы изменить или отменить его, напишите нам в WhatsApp: wa.me/${(process.env.WHATSAPP || "77022585183").replace(/\D/g, "")}`);
+        return;
+      }
+      if (act === "ccl") {
+        await editMsg(`Отменить заказ №${o.id} на ${fmt(o.total_kzt)} ₸?`, Markup.inlineKeyboard([[Markup.button.callback("❌ Да, отменить", `cclok:${o.id}`), Markup.button.callback("Нет, оставить", `cclno:${o.id}`)]]));
+        return ctx.answerCbQuery();
+      }
+      if (act === "cclno") {
+        await editMsg(`🤍 Заказ №${o.id} в силе!\nСумма: ${fmt(o.total_kzt)} ₸\n\nПроверим наличие и пришлём счёт.`, clientCancelKb(o));
+        return ctx.answerCbQuery("Заказ остаётся");
+      }
+      db.prepare("UPDATE orders SET status='cancelled' WHERE id=?").run(o.id);
+      const u = getOrder(o.id);
+      await editMsg(`❌ Заказ №${o.id} отменён.\nЕсли передумаете — оформите новый в каталоге 🤍`, catalogKb("🛍 Открыть каталог"));
+      for (const a of ADMIN_IDS) bot.telegram.sendMessage(a, `❌ Клиент отменил заказ №${o.id}\n👤 ${o.name} · ${o.phone}\n💰 ${fmt(o.total_kzt)} ₸`).catch(() => {});
+      if (u.telegram_chat_id && u.telegram_message_id)
+        bot.telegram.editMessageText(u.telegram_chat_id, u.telegram_message_id, undefined, orderCaption(u) + "\n\n❌ Отменён клиентом", statusKb(u)).catch(() => {});
+      return ctx.answerCbQuery("Заказ отменён");
+    }
+
     if (!isAdmin(ctx.from.id)) return ctx.answerCbQuery("Только для администратора");
 
     if (["oed", "oit", "oek", "oex", "inv"].includes(act)) {
@@ -435,7 +481,7 @@ if (bot) {
         }
         const text = invoiceText(o);
         let sent = false;
-        if (o.tg_user_id) { try { await bot.telegram.sendMessage(o.tg_user_id, text); sent = true; } catch (e) { /* клиент не запускал бота */ } }
+        if (o.tg_user_id) { try { await bot.telegram.sendMessage(o.tg_user_id, text, Markup.inlineKeyboard([[Markup.button.callback("❌ Отменить заказ", `ccl:${o.id}`)]])); sent = true; } catch (e) { /* клиент не запускал бота */ } }
         db.prepare("UPDATE orders SET status='invoiced' WHERE id=? AND status IN ('pending','contacted')").run(o.id);
         const u = getOrder(o.id);
         await edit(orderCaption(u), statusKb(u));
