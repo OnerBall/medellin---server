@@ -1,7 +1,7 @@
 {
   "name": "medellin-server",
   "version": "1.0.0",
-  "description": "Medellin Telegram Mini App backend — catalog, orders, Telegram bot notifications",
+  "description": "Medellin — оптовый каталог в Telegram: автозагрузка товаров из канала, заказы в бот",
   "main": "index.js",
   "type": "commonjs",
   "scripts": {
@@ -10,7 +10,6 @@
   },
   "dependencies": {
     "better-sqlite3": "^11.3.0",
-    "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "telegraf": "^4.16.3"

@@ -1,40 +1,39 @@
 require("dotenv").config();
 const path = require("path");
 const express = require("express");
-const cors = require("cors");
-const { bot } = require("./bot");
+const { bot, WEBAPP_URL, ALLOWED_UPDATES } = require("./bot");
 
 const app = express();
-app.use(cors());
-app.use(express.json({ limit: "15mb" })); // фото (base64) занимают место
+app.use(express.json({ limit: "200kb" }));
 
-app.use("/api", require("./routes/catalog"));
-app.use("/api", require("./routes/orders"));
-
-app.use(express.static(path.join(__dirname, "public")));
-
+app.use(require("./routes/catalog"));
+app.use(require("./routes/orders"));
+app.use(express.static(path.join(__dirname, "public"), { setHeaders: (res, p) => p.endsWith(".html") && res.set("Cache-Control", "no-cache") }));
 app.get("/health", (req, res) => res.json({ ok: true }));
 
 const PORT = process.env.PORT || 3000;
-const WEBHOOK_URL = process.env.WEBHOOK_URL; // напр. https://your-app.up.railway.app
+// адрес для вебхука: WEBHOOK_URL или домен Railway (подставляется сам)
+const WEBHOOK_URL = process.env.WEBHOOK_URL || (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : "");
 
 async function start() {
   if (bot) {
     if (WEBHOOK_URL) {
-      const webhookPath = "/bot-webhook";
-      app.use(bot.webhookCallback(webhookPath));
-      await bot.telegram.setWebhook(WEBHOOK_URL + webhookPath);
-      console.log("[bot] webhook установлен:", WEBHOOK_URL + webhookPath);
+      const hookPath = "/bot-webhook";
+      app.use(bot.webhookCallback(hookPath));
+      await bot.telegram.setWebhook(WEBHOOK_URL + hookPath, { allowed_updates: ALLOWED_UPDATES });
+      console.log("[bot] webhook:", WEBHOOK_URL + hookPath);
     } else {
-      bot.launch();
-      console.log("[bot] запущен в режиме long polling (локальная разработка)");
+      bot.launch({ allowedUpdates: ALLOWED_UPDATES });
+      console.log("[bot] long polling (локально)");
+    }
+    if (WEBAPP_URL) {
+      bot.telegram.setChatMenuButton({ menuButton: { type: "web_app", text: "Каталог", web_app: { url: WEBAPP_URL } } })
+        .catch((e) => console.warn("[bot] menu button:", e.message));
     }
   }
-
-  app.listen(PORT, () => console.log(`[server] слушает порт ${PORT}`));
+  app.listen(PORT, () => console.log(`[server] порт ${PORT}, каталог: ${WEBAPP_URL || "(нет домена)"}`));
 }
 
 start();
-
-process.once("SIGINT", () => { if (bot) bot.stop("SIGINT"); process.exit(0); });
-process.once("SIGTERM", () => { if (bot) bot.stop("SIGTERM"); process.exit(0); });
+process.once("SIGINT", () => { if (bot && !WEBHOOK_URL) bot.stop("SIGINT"); process.exit(0); });
+process.once("SIGTERM", () => { if (bot && !WEBHOOK_URL) bot.stop("SIGTERM"); process.exit(0); });
