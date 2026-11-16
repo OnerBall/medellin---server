@@ -282,8 +282,11 @@ const VIEWS = {
   },
   catalog() {
     const d = S.data;
-    return `<div class="back"><h1>Каталог</h1></div>${saleBanner()}` + d.sections.map((s) => `<h2>${s.title} ${s.count ? `<button data-sec="${s.key}">Все ${s.count} →</button>` : ""}</h2>
-      <div class="chips">${s.categories.filter((c) => c.count).map((c) => `<button class="chip" data-sec="${s.key}" data-cat="${c.key}">${c.title}<small>${c.count}</small></button>`).join("") || '<span class="muted" style="font-size:14px;padding:8px 2px">Скоро появятся товары</span>'}</div>`).join("");
+    const si = saleItems();
+    const saleBlock = `<h2>🔥 Распродажа ${si.length ? `<button data-sale>Все ${si.length} →</button>` : ""}</h2>
+      <button class="salebn" data-sale><span class="ic">🔥</span><span><b>Отдел распродажи</b><small>${si.length ? `${si.length} ${plural(si.length, "товар", "товара", "товаров")} · скидки до −${si[0].sale}%` : "Скоро здесь появятся скидки"}</small></span><i>→</i></button>`;
+    return `<div class="back"><h1>Каталог</h1></div>` + d.sections.map((s) => `<h2>${s.title} ${s.count ? `<button data-sec="${s.key}">Все ${s.count} →</button>` : ""}</h2>
+      <div class="chips">${s.categories.filter((c) => c.count).map((c) => `<button class="chip" data-sec="${s.key}" data-cat="${c.key}">${c.title}<small>${c.count}</small></button>`).join("") || '<span class="muted" style="font-size:14px;padding:8px 2px">Скоро появятся товары</span>'}</div>`).join("") + saleBlock;
   },
   section({ key, cat, size }) {
     const s = sec(key); if (!s) return emptyCatalog();
