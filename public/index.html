@@ -478,6 +478,8 @@ async function submit() {
     if (!r.ok) throw new Error(d.error || "Не получилось отправить, попробуйте ещё раз");
     S.cart = []; saveCart(); haptic("ok");
     S.stack = [{ name: "home", params: {} }, { name: "done", params: { id: d.id, total: d.total, wa: d.waText } }]; render(); window.scrollTo(0, 0);
+    // разрешение боту писать в личку: статусы заказа и новинки
+    try { const u = tg && tg.initDataUnsafe && tg.initDataUnsafe.user; if (u && !u.allows_write_to_pm && tg.requestWriteAccess) tg.requestWriteAccess(() => {}); } catch (e) {}
   } catch (e) {
     haptic("err"); toast(e.message); b.disabled = false; b.textContent = "Оформить заказ";
     if (/закончил|убран|наличии/.test(e.message)) load();
@@ -515,6 +517,7 @@ async function load() {
     const pid = new URLSearchParams(location.search).get("p") || (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param);
     if (pid && byId(pid) && S.stack.length === 1) S.stack.push({ name: "product", params: { id: pid } });
     render();
+    if (tg && tg.initData) fetch("/api/hello", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ initData: tg.initData }) }).catch(() => {});
   } catch (e) {
     app.innerHTML = `<div class="empty"><b>Нет связи</b>Проверьте интернет и откройте каталог ещё раз</div>`;
   }

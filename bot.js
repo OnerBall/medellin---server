@@ -11,6 +11,7 @@ const { ORDER: UNIT_ORDER, unitOf, plural } = require("./units");
 const MIN_ORDER = parseInt(process.env.MIN_ORDER || "50000", 10);
 const rates = require("./rates");
 const ai = require("./ai");
+const digest = require("./digest");
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const ADMIN_IDS = String(process.env.ADMIN_CHAT_ID || "").split(",").map((x) => parseInt(x.trim(), 10)).filter(Boolean);
@@ -320,6 +321,7 @@ async function assist(ctx, voice) {
 const voiceOf = (m) => m.voice || m.audio || m.video_note || null;
 
 if (bot) {
+  digest.init({ bot, ADMIN_IDS, WEBAPP_URL, isAdmin });
   bot.start(async (ctx) => {
     if (isAdmin(ctx.from.id)) {
       await ctx.reply(
@@ -327,10 +329,15 @@ if (bot) {
         "• Добавь меня админом в канал — каждый новый пост с фото и ценой сразу попадёт в каталог.\n" +
         "• Старые товары: выдели посты в канале и перешли их мне.\n" +
         "• Категория берётся из хэштега (#женскиетрусы, #пижамы…). Если хэштега нет — пришлю кнопки, выберешь.\n\n" +
-        "Команды: /stats — сводка, /hidden — скрытые товары, /tags — хэштеги, /rates — курсы валют, /pay — реквизиты, /post — пост с каталогом в канал.", catalogKb());
+        "Команды: /stats — сводка, /hidden — скрытые товары, /tags — хэштеги, /rates — курсы валют, /pay — реквизиты, /post — пост с каталогом в канал, /digest — рассылка «Новинки недели».", catalogKb());
     } else {
       await ctx.reply(`Добро пожаловать в Medellin 🤍\nОптовый каталог белья, пижам и халатов.\nЗаказ от ${fmt(MIN_ORDER)} ₸ · доставка по Казахстану и СНГ.\n\n🎤 Не хотите листать? Отправьте голосовое или напишите, что ищете, например: «тёплая пижама для девочки 116» — подберу товары.`, catalogKb());
     }
+  });
+
+  command("digest", async (ctx) => {
+    if (!isAdmin(ctx.from.id)) return;
+    await digest.preview([ctx.chat.id]);
   });
 
   command("find", async (ctx) => {
@@ -468,6 +475,7 @@ if (bot) {
     const data = ctx.callbackQuery.data || "";
     const msg = ctx.callbackQuery.message;
     const [act, id, extra] = data.split(":");
+    if (await digest.onCallback(ctx, act, id, extra)) return;
     if (["ccl", "cclok", "cclno"].includes(act)) {
       const o = getOrder(id);
       if (!o || Number(o.tg_user_id) !== ctx.from.id) return ctx.answerCbQuery("Заказ не найден");

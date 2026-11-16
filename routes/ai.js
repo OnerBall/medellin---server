@@ -26,4 +26,11 @@ router.post("/api/ai/voice", express.raw({ type: () => true, limit: "6mb" }), as
   } catch (e) { console.warn("[ai] voice:", e.message); res.status(502).json({ error: "Не получилось распознать — попробуйте ещё раз" }); }
 });
 
+// Mini App открыли — запоминаем покупателя для рассылки новинок
+router.post("/api/hello", (req, res) => {
+  const u = tgUser((req.body || {}).initData);
+  if (u) require("../digest").track(u, !u.allows_write_to_pm);
+  res.json({ ok: true });
+});
+
 module.exports = router;
