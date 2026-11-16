@@ -212,7 +212,7 @@ const cartCount = () => S.cart.reduce((a, i) => a + i.qty, 0);
 const saveCart = () => { S.cart = S.cart.filter((i) => byId(i.id)); store.set("medellin_cart", S.cart); };
 
 /* ---------- навигация ---------- */
-function go(name, params = {}, replace = false) {
+function go(name, params = {}, replace = false) { if (name === "product" && params.id && !replace) ev("view", params.id);
   if (replace) S.stack[S.stack.length - 1] = { name, params }; else S.stack.push({ name, params });
   render(); window.scrollTo(0, 0);
 }
@@ -348,12 +348,25 @@ const VIEWS = {
 };
 
 /* ---------- обработчики ---------- */
+/* ---------- аналитика: что смотрят, кладут, ищут ---------- */
+const EVQ = [];
+const ev = (k, p, q, n) => { EVQ.push({ k, p, q, n }); if (EVQ.length >= 20) flushEv(); };
+function flushEv() {
+  if (!EVQ.length) return;
+  const body = JSON.stringify({ initData: (tg && tg.initData) || "", events: EVQ.splice(0, 40) });
+  try { if (!(navigator.sendBeacon && navigator.sendBeacon("/api/ev", new Blob([body], { type: "application/json" })))) throw 0; }
+  catch (e) { fetch("/api/ev", { method: "POST", headers: { "Content-Type": "application/json" }, body, keepalive: true }).catch(() => {}); }
+}
+setInterval(flushEv, 5000);
+document.addEventListener("visibilitychange", () => document.visibilityState === "hidden" && flushEv());
+let searchT = null;
+
 function addToCart(id, qty = 1, size = "") {
   const p = byId(id); if (!p) return;
   if (!size && p.sizes.length === 1) size = p.sizes[0];
   const ex = S.cart.find((i) => i.id === id && i.size === size);
   if (ex) ex.qty += qty; else S.cart.push({ id, size, qty });
-  saveCart(); haptic("ok"); toast(`Добавлено: ${p.name}`);
+  saveCart(); haptic("ok"); toast(`Добавлено: ${p.name}`); ev("cart", id);
 }
 /* ---------- AI-ассистент: голос и умный подбор ---------- */
 let rec = null;
@@ -426,7 +439,8 @@ function bind(cur) {
   app.querySelectorAll("[data-go-country]").forEach((b) => (b.onclick = () => { haptic(); go("country"); }));
   const q = $("#q");
   if (q) {
-    q.oninput = () => { S.q = q.value; S.ai = null; const pos = q.selectionStart; render(); const n = $("#q"); n.focus(); n.setSelectionRange(pos, pos); };
+    q.oninput = () => { S.q = q.value; S.ai = null;
+      clearTimeout(searchT); searchT = setTimeout(() => { const t = S.q.trim(); if (t.length >= 3) { const n = (document.querySelectorAll("#app .grid [data-p]") || []).length; ev("search", null, t, n); } }, 1500); const pos = q.selectionStart; render(); const n = $("#q"); n.focus(); n.setSelectionRange(pos, pos); };
   }
   const mb = $("#mic"); if (mb) mb.onclick = (e) => { e.preventDefault(); micToggle(); };
   const ab = $("#aiask"); if (ab) ab.onclick = () => { haptic(); aiAsk({ text: S.q.trim() }); };
@@ -442,7 +456,15 @@ function bind(cur) {
     app.querySelectorAll("[data-psize]").forEach((b) => (b.onclick = () => { haptic(); go("product", { ...cur.params, size: b.dataset.psize }, true); }));
     app.querySelectorAll("[data-pq]").forEach((b) => (b.onclick = () => { haptic(); S.pqty = Math.max(1, (S.pqty || 1) + +b.dataset.pq); go("product", cur.params, true); }));
     const share = app.querySelector("[data-share]");
-    if (share) share.onclick = () => openLink(`https://t.me/share/url?url=${encodeURIComponent(location.origin)}&text=${encodeURIComponent(`${p.name} — ${money(p.price)} ₸/шт · Medellin`)}`);
+    if (share) share.onclick = () => {
+      const link = `${location.origin}/p/${encodeURIComponent(p.id)}`;
+      const text = `${p.name}\n${money(p.price)} ₸ ${p.unit.per} · упаковка ${p.pack} ${plural(p.pack, ...p.unit.forms)}\nОпт Medellin 👇`;
+      const viaWa = () => { ev("share", p.id, "wa"); openLink(`https://wa.me/?text=${encodeURIComponent(text + "\n" + link)}`); };
+      const viaTg = () => { ev("share", p.id, "tg"); const u = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`; if (tg && tg.openTelegramLink) tg.openTelegramLink(u); else openLink(u); };
+      haptic();
+      if (tg && tg.showPopup) tg.showPopup({ title: "Поделиться товаром", message: "Куда отправить?", buttons: [{ id: "wa", type: "default", text: "WhatsApp" }, { id: "tg", type: "default", text: "Telegram" }, { type: "cancel" }] }, (b) => { if (b === "wa") viaWa(); else if (b === "tg") viaTg(); });
+      else viaWa();
+    };
     const buy = app.querySelector("[data-buy]");
     if (buy) buy.onclick = () => {
       if (p.sizes.length > 1 && !cur.params.size) { haptic("err"); return toast("Выберите размер"); }
@@ -494,8 +516,24 @@ async function loadMyOrders() {
     if (!$("#myorders")) return;
     box.innerHTML = d.items.length ? d.items.map((o) => `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:13px 0;border-bottom:1px solid var(--line)">
       <div><b style="font-weight:600">№${esc(o.id)} · ${money(o.total)} ₸</b><div class="muted" style="font-size:13px;margin-top:2px">${new Date(o.date).toLocaleDateString("ru-RU")} · ${esc(o.statusText)}</div></div>
-      ${o.canCancel ? `<button class="chip" data-cancel="${esc(o.id)}" style="color:var(--rose)">Отменить</button>` : ""}</div>`).join("")
+      <div style="display:flex;gap:6px;flex:none"><button class="chip" data-repeat="${esc(o.id)}">🔁 Повторить</button>${o.canCancel ? `<button class="chip" data-cancel="${esc(o.id)}" style="color:var(--rose)">Отменить</button>` : ""}</div></div>`).join("")
       : `<div class="muted" style="padding:14px 0;font-size:14px">Заказов пока нет</div>`;
+    box.querySelectorAll("[data-repeat]").forEach((b) => (b.onclick = () => {
+      const o = d.items.find((x) => x.id === b.dataset.repeat); if (!o) return;
+      let added = 0, miss = 0;
+      for (const it of o.items || []) {
+        const p = byId(it.id);
+        if (!p || !p.inStock) { miss++; continue; }
+        const size = p.sizes.includes(it.size) ? it.size : (p.sizes.length === 1 ? p.sizes[0] : "");
+        const ex = S.cart.find((c) => c.id === it.id && c.size === size);
+        if (ex) ex.qty += it.qty; else S.cart.push({ id: it.id, size, qty: it.qty });
+        added++;
+      }
+      saveCart(); ev("repeat", null, o.id, added);
+      if (!added) { haptic("err"); return toast("Этих товаров сейчас нет в наличии"); }
+      haptic("ok"); tab("cart");
+      toast(miss ? `Добавлено ${added} поз. · ${miss} нет в наличии` : `Заказ №${o.id} добавлен в корзину`);
+    }));
     box.querySelectorAll("[data-cancel]").forEach((b) => (b.onclick = () => {
       const doIt = async (ok) => { if (!ok) return;
         const r2 = await fetch("/api/orders/cancel", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: b.dataset.cancel, initData: tg.initData }) });
@@ -515,8 +553,9 @@ async function load() {
     if (!S.stack.length) S.stack = [{ name: S.country ? "home" : "country", params: {} }];
     // ?p=<id> — открыть товар по ссылке
     const pid = new URLSearchParams(location.search).get("p") || (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param);
-    if (pid && byId(pid) && S.stack.length === 1) S.stack.push({ name: "product", params: { id: pid } });
+    if (pid && byId(pid) && S.stack.length === 1) { S.stack.push({ name: "product", params: { id: pid } }); ev("view", pid); }
     render();
+    ev("open");
     if (tg && tg.initData) fetch("/api/hello", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ initData: tg.initData }) }).catch(() => {});
   } catch (e) {
     app.innerHTML = `<div class="empty"><b>Нет связи</b>Проверьте интернет и откройте каталог ещё раз</div>`;

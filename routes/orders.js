@@ -102,13 +102,37 @@ ${items.map((i, k) => `<div class="i">${i.ph ? `<img src="${i.ph}" alt="">` : ""
 <div class="t">Итого: ${fmt(o.total_kzt)} ₸</div></div></body></html>`);
 });
 
+// страница «поделиться товаром»: красивое превью в WhatsApp/Telegram и переход в каталог
+let botName = (process.env.BOT_USERNAME || "").replace("@", "");
+async function getBotName() {
+  if (botName) return botName;
+  try { const { bot } = require("../bot"); if (bot) botName = (await bot.telegram.getMe()).username; } catch (e) {}
+  return botName;
+}
+router.get("/p/:id", async (req, res) => {
+  const r = products.get(String(req.params.id));
+  const name = await getBotName();
+  const go = name ? `https://t.me/${name}?startapp=${encodeURIComponent(req.params.id)}` : "/";
+  if (!r || !products.isPublic(r)) return res.redirect(go);
+  const base = baseUrl(req), fmt = (n) => Math.round(n).toLocaleString("ru-RU").replace(/\u00a0/g, " ");
+  const u = unitOf(r.unit);
+  const desc = `${fmt(r.price_per_unit)} ₸ ${u.per} · упаковка ${r.pack_qty} ${plural(r.pack_qty, u.forms)} · опт Medellin`;
+  res.set("Cache-Control", "public, max-age=600").send(`<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${h(r.name)} — Medellin</title><meta property="og:title" content="${h(r.name)}"><meta property="og:description" content="${h(desc)}">
+${JSON.parse(r.photos || "[]").length ? `<meta property="og:image" content="${base}/photo/${h(r.id)}/0">` : ""}<meta property="og:type" content="product">
+<meta http-equiv="refresh" content="0;url=${h(go)}"></head>
+<body style="background:#160507;color:#F5EBDD;font-family:system-ui;text-align:center;padding:40px">
+<p>${h(r.name)}<br>${h(desc)}</p><p><a style="color:#D9B26F" href="${h(go)}">Открыть в каталоге Medellin</a></p></body></html>`);
+});
+
 // мои заказы (по подписи Telegram) и отмена неоплаченного
 router.post("/api/my-orders", (req, res) => {
   const user = tgUser((req.body || {}).initData);
   if (!user) return res.json({ items: [] });
   const rows = db.prepare("SELECT * FROM orders WHERE tg_user_id=? ORDER BY created_at DESC LIMIT 20").all(user.id);
   res.json({ items: rows.map((o) => ({ id: o.id, total: o.total_kzt, date: o.created_at, status: o.status,
-    statusText: (STATUS_LABELS[o.status] || o.status).replace(/^\S+\s/, ""), count: JSON.parse(o.items).length, canCancel: CANCELLABLE.includes(o.status) })) });
+    statusText: (STATUS_LABELS[o.status] || o.status).replace(/^\S+\s/, ""), count: JSON.parse(o.items).length, canCancel: CANCELLABLE.includes(o.status),
+    items: JSON.parse(o.items).map((i) => ({ id: i.id, size: i.size || "", qty: i.qty })) })) });
 });
 
 router.post("/api/orders/cancel", (req, res) => {

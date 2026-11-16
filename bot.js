@@ -12,6 +12,7 @@ const MIN_ORDER = parseInt(process.env.MIN_ORDER || "50000", 10);
 const rates = require("./rates");
 const ai = require("./ai");
 const digest = require("./digest");
+const analytics = require("./analytics");
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const ADMIN_IDS = String(process.env.ADMIN_CHAT_ID || "").split(",").map((x) => parseInt(x.trim(), 10)).filter(Boolean);
@@ -329,10 +330,16 @@ if (bot) {
         "• Добавь меня админом в канал — каждый новый пост с фото и ценой сразу попадёт в каталог.\n" +
         "• Старые товары: выдели посты в канале и перешли их мне.\n" +
         "• Категория берётся из хэштега (#женскиетрусы, #пижамы…). Если хэштега нет — пришлю кнопки, выберешь.\n\n" +
-        "Команды: /stats — сводка, /hidden — скрытые товары, /tags — хэштеги, /rates — курсы валют, /pay — реквизиты, /post — пост с каталогом в канал, /digest — рассылка «Новинки недели».", catalogKb());
+        "Команды: /stats — сводка, /hidden — скрытые товары, /tags — хэштеги, /rates — курсы валют, /pay — реквизиты, /post — пост с каталогом в канал, /digest — рассылка «Новинки недели», /top — аналитика (/top 30 — за месяц).", catalogKb());
     } else {
       await ctx.reply(`Добро пожаловать в Medellin 🤍\nОптовый каталог белья, пижам и халатов.\nЗаказ от ${fmt(MIN_ORDER)} ₸ · доставка по Казахстану и СНГ.\n\n🎤 Не хотите листать? Отправьте голосовое или напишите, что ищете, например: «тёплая пижама для девочки 116» — подберу товары.`, catalogKb());
     }
+  });
+
+  command("top", async (ctx) => {
+    if (!isAdmin(ctx.from.id)) return;
+    const days = Math.min(90, Math.max(1, parseInt((ctx.message.text || "").split(/\s+/)[1], 10) || 7));
+    await ctx.reply(analytics.report(days));
   });
 
   command("digest", async (ctx) => {
@@ -352,7 +359,7 @@ if (bot) {
     const all = db.prepare("SELECT * FROM products").all();
     const pub = all.filter(products.isPublic).length;
     const orders = db.prepare("SELECT COUNT(*) n, COALESCE(SUM(total_kzt),0) s FROM orders WHERE status!='cancelled'").get();
-    await ctx.reply(`📊 Товаров: ${all.length}\n✅ В каталоге: ${pub}\n🙈 Скрыто: ${all.length - pub}\n\n🛒 Заказов: ${orders.n} на ${fmt(orders.s)} ₸\n\n${diskInfo()}`, catalogKb());
+    await ctx.reply(`📊 Товаров: ${all.length}\n✅ В каталоге: ${pub}\n🙈 Скрыто: ${all.length - pub}\n\n🛒 Заказов: ${orders.n} на ${fmt(orders.s)} ₸\n\n📈 Что смотрят и ищут: /top\n\n${diskInfo()}`, catalogKb());
   });
 
   command("hidden", async (ctx) => {
