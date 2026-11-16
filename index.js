@@ -9,6 +9,7 @@ app.use(express.json({ limit: "200kb" }));
 
 app.use(require("./routes/catalog"));
 app.use(require("./routes/orders"));
+app.use(require("./routes/ai"));
 app.use(express.static(path.join(__dirname, "public"), { setHeaders: (res, p) => p.endsWith(".html") && res.set("Cache-Control", "no-cache") }));
 app.get("/health", (req, res) => res.json({ ok: true }));
 

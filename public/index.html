@@ -39,6 +39,17 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-o
 .search svg{width:20px;height:20px;flex:none}
 .search input{flex:1;min-width:0;border:0;background:none;outline:none;font-size:16px;color:var(--cream)}
 .search input::placeholder{color:#9C887C}
+.search .mic{flex:none;width:38px;height:38px;margin-right:-8px;border-radius:50%;display:grid;place-items:center;color:var(--gold);background:rgba(217,178,111,.12)}
+.search .mic svg{width:20px;height:20px}
+.search .mic.rec{background:var(--rose);color:#fff;animation:pulse 1.1s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(232,112,122,.6)}100%{box-shadow:0 0 0 14px rgba(232,112,122,0)}}
+.rechint{margin:-6px 4px 14px;font-size:13.5px;color:var(--rose);text-align:center}
+.aibtn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:13px;margin:0 0 14px;border-radius:16px;font-weight:600;font-size:14.5px;color:var(--gold);box-shadow:inset 0 0 0 1px rgba(217,178,111,.45);background:rgba(217,178,111,.08)}
+.aibox{padding:16px;margin-bottom:16px;border-radius:var(--r);background:linear-gradient(135deg,rgba(217,178,111,.16),rgba(90,15,26,.3));box-shadow:inset 0 0 0 1px rgba(217,178,111,.35)}
+.aibox .q{font-size:13px;color:var(--cream2);margin-bottom:6px}.aibox .a{font-size:15.5px;line-height:1.4}
+.aibox .x{margin-top:10px;font-size:13px;color:var(--gold)}
+.dots::after{content:"…";animation:dots 1.2s steps(4) infinite;display:inline-block;width:1.2em;overflow:hidden;vertical-align:bottom}
+@keyframes dots{0%{width:0}100%{width:1.2em}}
 .banner{position:relative;overflow:hidden;padding:20px;margin-bottom:22px;border-radius:var(--r);box-shadow:inset 0 0 0 1px rgba(217,178,111,.35),0 14px 34px rgba(0,0,0,.5)}
 .banner b{font-family:Playfair,Georgia,serif;font-size:27px;display:block;line-height:1.15;position:relative}
 .banner p{font-size:14px;color:#EBD9CB;margin-top:8px;position:relative;max-width:66%}
@@ -172,6 +183,7 @@ const $ = (s) => document.querySelector(s);
 const app = $("#app");
 const I = {
  cart:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 7h12l-1 13H7L6 7z"/><path d="M9 7a3 3 0 0 1 6 0"/></svg>',
+ mic:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>',
  search:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
  home:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 12 4l8 7v9H4z"/><path d="M10 20v-5h4v5"/></svg>',
  grid:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/></svg>',
@@ -189,7 +201,7 @@ let toastT; const toast = (m) => { const t = $("#toast"); t.textContent = m; t.c
 const store = { get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
 const openLink = (u) => { if (tg && tg.openLink) tg.openLink(u); else window.open(u, "_blank"); };
 
-const S = { data: null, stack: [], cart: store.get("medellin_cart", []), q: "", form: store.get("medellin_form", {}), country: store.get("medellin_country", null) };
+const S = { data: null, stack: [], cart: store.get("medellin_cart", []), q: "", ai: null, mic: false, form: store.get("medellin_form", {}), country: store.get("medellin_country", null) };
 const ctry = () => (S.data && S.data.countries.find((c) => c.code === S.country)) || null;
 // «≈ 110 сом» рядом с ценой в тенге — для покупателей не из Казахстана
 const alt = (kzt) => { const c = ctry(); if (!c || c.cur === "KZT" || !c.rate) return ""; const v = kzt / c.rate; return `≈ ${money(c.cur === "UZS" ? Math.round(v / 100) * 100 : v)} ${c.sym}`; };
@@ -231,11 +243,17 @@ const VIEWS = {
     const d = S.data, q = S.q.trim().toLowerCase();
     const head = `<div class="top"><img src="img/logo.png" alt="Medellin"><div class="t"><b>Medellin</b><small>Стиль · качество · доверие</small></div>
       <button class="icon-btn glass" data-tab="cart" aria-label="Корзина">${I.cart}${cartCount() ? `<span class="badge">${cartCount()}</span>` : ""}</button></div>
-      <label class="search glass">${I.search}<input id="q" type="search" placeholder="Поиск товаров…" value="${esc(S.q)}" autocomplete="off"></label>`;
+      <label class="search glass">${I.search}<input id="q" type="search" placeholder="${S.mic ? "Говорите…" : "Поиск или нажмите 🎤"}" value="${esc(S.q)}" autocomplete="off"><button type="button" class="mic ${S.mic ? "rec" : ""}" id="mic" aria-label="Голосовой поиск">${I.mic}</button></label>
+      ${S.mic ? `<div class="rechint">Говорите, что ищете… нажмите 🎤 ещё раз, чтобы отправить</div>` : ""}`;
+    if (S.ai) {
+      const a = S.ai, items = (a.ids || []).map(byId).filter(Boolean);
+      return head + `<div class="aibox">${a.query ? `<div class="q">${a.voice ? "🎤" : "✨"} «${esc(a.query)}»</div>` : ""}<div class="a ${a.loading ? "dots" : ""}">${a.loading ? "Подбираю товары" : esc(a.reply || (items.length ? "Вот что подобрала 👇" : "Пока не нашла подходящего 🙈 Попробуйте сказать иначе"))}</div>${a.loading ? "" : `<button class="x" id="aiclear">✕ Сбросить подбор</button>`}</div>`
+        + (items.length ? `<div class="grid">${items.map(card).join("")}</div>` : "");
+    }
     if (q) {
       const words = q.split(/\s+/);
       const res = d.products.filter((p) => words.every((w) => (p.name + " " + catTitle(p.category) + " " + (sec(p.section) || {}).title).toLowerCase().replace(/ё/g, "е").includes(w.replace(/ё/g, "е"))));
-      return head + `<div class="toolbar"><span>Найдено: ${res.length}</span></div>` + (res.length ? `<div class="grid">${res.map(card).join("")}</div>` : `<div class="empty"><b>Ничего не нашли</b>Попробуйте другое слово: «пижама», «майка», «детские»</div>`);
+      return head + `<button class="aibtn" id="aiask">✨ Подобрать с ассистентом</button><div class="toolbar"><span>Найдено: ${res.length}</span></div>` + (res.length ? `<div class="grid">${res.map(card).join("")}</div>` : `<div class="empty"><b>Ничего не нашли</b>Попробуйте другое слово: «пижама», «майка», «детские»</div>`);
     }
     const news = d.products.filter((p) => p.inStock).slice(0, 10);
     return head + `
@@ -337,6 +355,41 @@ function addToCart(id, qty = 1, size = "") {
   if (ex) ex.qty += qty; else S.cart.push({ id, size, qty });
   saveCart(); haptic("ok"); toast(`Добавлено: ${p.name}`);
 }
+/* ---------- AI-ассистент: голос и умный подбор ---------- */
+let rec = null;
+async function micToggle() {
+  if (rec && rec.state === "recording") { rec.stop(); return; }
+  if (!navigator.mediaDevices || !window.MediaRecorder) return toast("Голос не поддерживается — напишите, что ищете");
+  let stream;
+  try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+  catch (e) { return toast("Нет доступа к микрофону — разрешите его для Telegram в настройках телефона"); }
+  const mime = ["audio/webm;codecs=opus", "audio/mp4", "audio/webm", "audio/ogg"].find((m) => MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m)) || "";
+  const chunks = [];
+  rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+  rec.ondataavailable = (e) => e.data && e.data.size && chunks.push(e.data);
+  rec.onstop = () => {
+    stream.getTracks().forEach((t) => t.stop()); clearTimeout(rec._t);
+    const blob = new Blob(chunks, { type: rec.mimeType || mime || "audio/webm" });
+    S.mic = false; render();
+    if (blob.size < 1500) return toast("Слишком коротко — скажите ещё раз");
+    aiAsk({ blob });
+  };
+  rec.start(); S.mic = true; haptic(); S.stack = [{ name: "home", params: {} }]; render(); window.scrollTo(0, 0);
+  rec._t = setTimeout(() => rec && rec.state === "recording" && rec.stop(), 15000);
+}
+async function aiAsk({ blob, text }) {
+  S.ai = { loading: true, query: text || "" }; S.q = ""; S.stack = [{ name: "home", params: {} }]; render(); window.scrollTo(0, 0);
+  try {
+    const r = blob
+      ? await fetch("/api/ai/voice", { method: "POST", headers: { "Content-Type": blob.type || "audio/webm", "X-Init-Data": (tg && tg.initData) || "" }, body: blob })
+      : await fetch("/api/ai/find", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ q: text, initData: (tg && tg.initData) || "" }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || "Ассистент сейчас недоступен");
+    S.ai = { query: d.query, reply: d.reply, ids: d.ids || [], voice: !!blob }; haptic("ok");
+  } catch (e) { S.ai = null; haptic("err"); toast(e.message); }
+  render();
+}
+
 function bind(cur) {
   app.querySelectorAll("[data-tab]").forEach((b) => (b.onclick = () => { haptic(); tab(b.dataset.tab === "cat" ? "catalog" : b.dataset.tab); }));
   $("#nav").querySelectorAll("[data-tab]").forEach((b) => (b.onclick = () => { haptic(); tab(b.dataset.tab === "cat" ? "catalog" : b.dataset.tab); }));
@@ -373,8 +426,11 @@ function bind(cur) {
   app.querySelectorAll("[data-go-country]").forEach((b) => (b.onclick = () => { haptic(); go("country"); }));
   const q = $("#q");
   if (q) {
-    q.oninput = () => { S.q = q.value; const pos = q.selectionStart; render(); const n = $("#q"); n.focus(); n.setSelectionRange(pos, pos); };
+    q.oninput = () => { S.q = q.value; S.ai = null; const pos = q.selectionStart; render(); const n = $("#q"); n.focus(); n.setSelectionRange(pos, pos); };
   }
+  const mb = $("#mic"); if (mb) mb.onclick = (e) => { e.preventDefault(); micToggle(); };
+  const ab = $("#aiask"); if (ab) ab.onclick = () => { haptic(); aiAsk({ text: S.q.trim() }); };
+  const ac = $("#aiclear"); if (ac) ac.onclick = () => { haptic(); S.ai = null; render(); };
   if (cur.name === "section") {
     app.querySelectorAll("[data-cat]").forEach((b) => (b.onclick = () => { haptic(); go("section", { ...cur.params, cat: b.dataset.cat, size: "" }, true); }));
     app.querySelectorAll("[data-size]").forEach((b) => (b.onclick = () => { haptic(); go("section", { ...cur.params, size: cur.params.size === b.dataset.size ? "" : b.dataset.size }, true); }));

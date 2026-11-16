@@ -122,4 +122,5 @@ router.post("/api/orders/cancel", (req, res) => {
   res.json({ ok: true });
 });
 
+router.tgUser = tgUser;
 module.exports = router;

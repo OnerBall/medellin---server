@@ -10,13 +10,18 @@ const STT_MODEL = process.env.AI_STT_MODEL || "gpt-4o-mini-transcribe";
 const enabled = () => !!KEY;
 
 // ---------- речь → текст ----------
-async function transcribe(fileUrl) {
-  const audio = await fetch(fileUrl);
-  if (!audio.ok) throw new Error("не удалось скачать голосовое");
-  const buf = Buffer.from(await audio.arrayBuffer());
+async function transcribe(src, mime = "audio/ogg") {
+  let buf = src;
+  if (typeof src === "string") {
+    const audio = await fetch(src);
+    if (!audio.ok) throw new Error("не удалось скачать голосовое");
+    buf = Buffer.from(await audio.arrayBuffer());
+  }
+  const type = String(mime || "audio/ogg").split(";")[0];
+  const ext = /mp4|m4a|aac/.test(type) ? "m4a" : /webm/.test(type) ? "webm" : /mpeg|mp3/.test(type) ? "mp3" : /wav/.test(type) ? "wav" : "ogg";
   const tryModel = async (model) => {
     const fd = new FormData();
-    fd.append("file", new Blob([buf], { type: "audio/ogg" }), "voice.ogg");
+    fd.append("file", new Blob([buf], { type }), `voice.${ext}`);
     fd.append("model", model);
     fd.append("language", "ru");
     fd.append("prompt", "Оптовый магазин белья: трусы, майки, топы, пижамы, халаты, сорочки, термобельё, лосины, носки, боди, кофты, размеры S M L XL XXL.");
