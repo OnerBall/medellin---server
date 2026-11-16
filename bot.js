@@ -10,6 +10,7 @@ const { CATEGORIES, SECTIONS, SECTION_TITLE, BY_KEY, label } = require("./catego
 const { ORDER: UNIT_ORDER, unitOf, plural } = require("./units");
 const MIN_ORDER = parseInt(process.env.MIN_ORDER || "50000", 10);
 const rates = require("./rates");
+const ai = require("./ai");
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const ADMIN_IDS = String(process.env.ADMIN_CHAT_ID || "").split(",").map((x) => parseInt(x.trim(), 10)).filter(Boolean);
@@ -281,6 +282,43 @@ const pending = new Map(); // chatId -> { id, field, msg }
 const CMDS = {};
 function command(name, fn) { CMDS[name] = fn; bot.command(name, fn); }
 
+// ---------- AI-ассистент: голос/текст → подбор товаров ----------
+async function assist(ctx, voice) {
+  const uid = ctx.from.id;
+  if (!ai.allow(uid)) return ctx.reply("Слишком много запросов подряд 🙏 Попробуйте чуть позже или откройте каталог 👇", catalogKb());
+  let query = (ctx.message.text || "").trim();
+  try {
+    if (voice) {
+      if (!ai.enabled()) return ctx.reply("Напишите текстом, что ищете — подберу товары 🤍", catalogKb());
+      if (voice.duration > 90) return ctx.reply("Голосовое слишком длинное — уложитесь в минуту 🙏");
+      await ctx.sendChatAction("typing").catch(() => {});
+      const link = await ctx.telegram.getFileLink(voice.file_id);
+      query = await ai.transcribe(String(link));
+      if (!query) return ctx.reply("Не расслышала 🙈 Повторите, пожалуйста, или напишите текстом.");
+    }
+    await ctx.sendChatAction("upload_photo").catch(() => {});
+    const { reply, items } = await ai.find(query);
+    const head = voice ? `🎤 «${query.slice(0, 200)}»\n\n` : "";
+    if (!items.length) {
+      return ctx.reply(head + (reply || "Пока не нашла подходящего 🙈 Попробуйте сказать иначе или посмотрите весь каталог 👇"), catalogKb());
+    }
+    const album = [];
+    items.forEach((p, i) => {
+      const r = products.get(p.id); const ph = r && JSON.parse(r.photos || "[]")[0];
+      if (ph) album.push({ type: "photo", media: ph, caption: `${i + 1}. ${p.name}\n${fmt(p.price)} ₸ ${p.unit.per} · упаковка ${products.packText(r)}` });
+    });
+    if (album.length > 1) await ctx.replyWithMediaGroup(album).catch((e) => console.warn("[ai] album:", e.message));
+    else if (album.length === 1) await ctx.replyWithPhoto(album[0].media, { caption: album[0].caption }).catch(() => {});
+    const rows = WEBAPP_URL ? items.map((p, i) => [Markup.button.webApp(`${i + 1}. ${p.name}`.slice(0, 60), `${WEBAPP_URL}/?p=${encodeURIComponent(p.id)}`)]) : [];
+    if (WEBAPP_URL) rows.push([Markup.button.webApp("🛍 Весь каталог", WEBAPP_URL)]);
+    return ctx.reply(head + (reply || "Вот что подобрала 👇") + "\n\nНажмите на товар, чтобы открыть и добавить в корзину.", rows.length ? Markup.inlineKeyboard(rows) : undefined);
+  } catch (e) {
+    console.warn("[ai]", e.message);
+    return ctx.reply("Ассистент сейчас недоступен 🙏 Откройте каталог 👇", catalogKb());
+  }
+}
+const voiceOf = (m) => m.voice || m.audio || m.video_note || null;
+
 if (bot) {
   bot.start(async (ctx) => {
     if (isAdmin(ctx.from.id)) {
@@ -291,8 +329,15 @@ if (bot) {
         "• Категория берётся из хэштега (#женскиетрусы, #пижамы…). Если хэштега нет — пришлю кнопки, выберешь.\n\n" +
         "Команды: /stats — сводка, /hidden — скрытые товары, /tags — хэштеги, /rates — курсы валют, /pay — реквизиты, /post — пост с каталогом в канал.", catalogKb());
     } else {
-      await ctx.reply(`Добро пожаловать в Medellin 🤍\nОптовый каталог белья, пижам и халатов.\nЗаказ от ${fmt(MIN_ORDER)} ₸ · доставка по Казахстану и СНГ.`, catalogKb());
+      await ctx.reply(`Добро пожаловать в Medellin 🤍\nОптовый каталог белья, пижам и халатов.\nЗаказ от ${fmt(MIN_ORDER)} ₸ · доставка по Казахстану и СНГ.\n\n🎤 Не хотите листать? Отправьте голосовое или напишите, что ищете, например: «тёплая пижама для девочки 116» — подберу товары.`, catalogKb());
     }
+  });
+
+  command("find", async (ctx) => {
+    const q = (ctx.message.text || "").replace(/^\/?find(@\w+)?/i, "").trim();
+    if (!q) return ctx.reply("Напишите после команды, что ищете: /find пижама для девочки");
+    ctx.message.text = q;
+    return assist(ctx, null);
   });
 
   command("stats", async (ctx) => {
@@ -397,8 +442,11 @@ if (bot) {
           return ctx.reply(`🧾 Чек по заказу №${o.id} получен! Проверим и подтвердим оплату 🤍`);
         }
       }
+      if (voiceOf(m)) return assist(ctx, voiceOf(m));
+      if (txt.length >= 2) return assist(ctx, null);
       return ctx.reply("Каталог Medellin — по кнопке ниже 👇\nВопросы — в WhatsApp: wa.me/" + (process.env.WHATSAPP || "77022585183"), catalogKb());
     }
+    if (voiceOf(m)) return assist(ctx, voiceOf(m)); // админ может проверить ассистента голосом
     // ответ админа на «введи цену/упаковку»
     const p = pending.get(ctx.chat.id);
     if (p && m.text && /^\s*[\d\s]+\s*(₸|тг)?\s*$/i.test(m.text)) {
