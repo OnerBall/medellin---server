@@ -48,6 +48,7 @@ function cardText(r) {
     status, "",
     `🛍 ${r.name}`,
     `💰 ${r.price_per_unit ? fmt(r.price_per_unit) + " ₸ / " + u.label : "цена не найдена"} · упаковка ${products.packText(r)}` + (r.price_per_unit ? ` = ${fmt(r.price_per_unit * r.pack_qty)} ₸` : ""),
+    products.onSale(r) ? `🔥 Распродажа: ${fmt(r.sale_price)} ₸ / ${u.label} (−${Math.round((1 - r.sale_price / r.price_per_unit) * 100)}%)` : null,
     `📂 ${label(r.category)}`,
     sizes.length ? `📏 ${sizes.join(" ")}` : null,
     `🖼 фото: ${np}` + (nv ? ` · 🎬 видео: ${nv}` : "")
@@ -58,6 +59,7 @@ function cardKb(r) {
   return Markup.inlineKeyboard([
     [Markup.button.callback("📂 Категория", `cat:${r.id}`), Markup.button.callback("💰 Цена", `price:${r.id}`), Markup.button.callback("📦 Упаковка", `pack:${r.id}`)],
     [Markup.button.callback(`🏷 Цена ${unitOf(r.unit).per}`, `unit:${r.id}`)],
+    [products.onSale(r) ? Markup.button.callback("✖️ Убрать из распродажи", `unsale:${r.id}`) : Markup.button.callback("🔥 В распродажу", `sale:${r.id}`)],
     [Markup.button.callback(r.hidden === 2 ? "👁 Показать" : "🙈 Скрыть", `hide:${r.id}`),
       Markup.button.callback(r.in_stock ? "⛔ Нет в наличии" : "✅ Есть в наличии", `stock:${r.id}`)],
     [Markup.button.callback("🗑 Удалить", `del:${r.id}`)]
@@ -330,10 +332,18 @@ if (bot) {
         "• Добавь меня админом в канал — каждый новый пост с фото и ценой сразу попадёт в каталог.\n" +
         "• Старые товары: выдели посты в канале и перешли их мне.\n" +
         "• Категория берётся из хэштега (#женскиетрусы, #пижамы…). Если хэштега нет — пришлю кнопки, выберешь.\n\n" +
-        "Команды: /stats — сводка, /hidden — скрытые товары, /tags — хэштеги, /rates — курсы валют, /pay — реквизиты, /post — пост с каталогом в канал, /digest — рассылка «Новинки недели», /top — аналитика (/top 30 — за месяц).", catalogKb());
+        "Команды: /stats — сводка, /hidden — скрытые товары, /tags — хэштеги, /rates — курсы валют, /pay — реквизиты, /post — пост с каталогом в канал, /digest — рассылка «Новинки недели», /top — аналитика (/top 30 — за месяц), /sale — распродажа.", catalogKb());
     } else {
       await ctx.reply(`Добро пожаловать в Medellin 🤍\nОптовый каталог белья, пижам и халатов.\nЗаказ от ${fmt(MIN_ORDER)} ₸ · доставка по Казахстану и СНГ.\n\n🎤 Не хотите листать? Отправьте голосовое или напишите, что ищете, например: «тёплая пижама для девочки 116» — подберу товары.`, catalogKb());
     }
+  });
+
+  command("sale", async (ctx) => {
+    if (!isAdmin(ctx.from.id)) return;
+    const rows = db.prepare("SELECT * FROM products WHERE sale_price > 0 ORDER BY updated_at DESC").all().filter(products.onSale);
+    if (!rows.length) return ctx.reply("🔥 В распродаже пока ничего нет.\nОткрой карточку товара (перешли пост или /hidden) и нажми «🔥 В распродажу».");
+    await ctx.reply(`🔥 В распродаже: ${rows.length}\n\n` + rows.slice(0, 40).map((r) => `• ${r.name} — ${fmt(r.sale_price)} ₸ вместо ${fmt(r.price_per_unit)} ₸`).join("\n") + (rows.length > 40 ? "\n…" : "") + "\n\nУбрать — кнопкой «✖️ Убрать из распродажи» в карточке. Карточки:", catalogKb());
+    for (const r of rows.slice(0, 10)) await sendCard(ctx.chat.id, r);
   });
 
   command("top", async (ctx) => {
@@ -463,6 +473,16 @@ if (bot) {
     if (voiceOf(m)) return assist(ctx, voiceOf(m)); // админ может проверить ассистента голосом
     // ответ админа на «введи цену/упаковку»
     const p = pending.get(ctx.chat.id);
+    if (p && p.field === "sale" && m.text && /^\s*[\d\s]+\s*(%|₸|тг)?\s*$/i.test(m.text)) {
+      pending.delete(ctx.chat.id);
+      const r0 = products.get(p.id); if (!r0) return ctx.reply("Товар уже удалён.");
+      const num = parseInt(m.text.replace(/\D/g, ""), 10);
+      const sp = /%/.test(m.text) ? Math.round(r0.price_per_unit * (1 - num / 100)) : num;
+      if (!(sp > 0) || sp >= r0.price_per_unit) return ctx.reply(`Цена со скидкой должна быть меньше обычной (${fmt(r0.price_per_unit)} ₸). Нажми «🔥 В распродажу» ещё раз.`);
+      const r = products.update(p.id, { sale_price: sp });
+      await editCard(p.msg, r);
+      return ctx.reply(`🔥 «${r.name}» в распродаже: ${fmt(sp)} ₸ вместо ${fmt(r.price_per_unit)} ₸ (−${Math.round((1 - sp / r.price_per_unit) * 100)}%)\nВсе товары со скидкой: /sale`);
+    }
     if (p && m.text && /^\s*[\d\s]+\s*(₸|тг)?\s*$/i.test(m.text)) {
       const v = parseInt(m.text.replace(/\D/g, ""), 10);
       pending.delete(ctx.chat.id);
@@ -584,6 +604,15 @@ if (bot) {
         if (!BY_KEY[extra]) return ctx.answerCbQuery();
         const u = products.update(id, { category: extra });
         await editCard(msg, u); return ctx.answerCbQuery("📂 " + label(extra));
+      }
+      case "sale":
+        pending.set(ctx.chat.id, { id, field: "sale", msg });
+        await ctx.answerCbQuery();
+        return ctx.reply(`🔥 Сейчас ${fmt(r.price_per_unit)} ₸ ${unitOf(r.unit).per}.\nНапиши новую цену (например ${fmt(Math.round(r.price_per_unit * 0.8 / 10) * 10)}) или скидку в процентах (например 20%)`);
+      case "unsale": {
+        const r2 = products.update(id, { sale_price: null });
+        await editCard(msg, r2);
+        return ctx.answerCbQuery("Убрано из распродажи");
       }
       case "price":
       case "pack":

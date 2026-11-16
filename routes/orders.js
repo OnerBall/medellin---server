@@ -47,7 +47,7 @@ router.post("/api/orders", async (req, res) => {
     if (!r.in_stock) return res.status(409).json({ error: `«${r.name}» сейчас нет в наличии` });
     const sizes = JSON.parse(r.sizes || "[]");
     const size = sizes.includes(it.size) ? it.size : "";
-    items.push({ id: r.id, name: r.name, size, qty, pack: r.pack_qty, price: r.price_per_unit, unit: r.unit || "pcs" });
+    items.push({ id: r.id, name: r.name, size, qty, pack: r.pack_qty, price: products.effPrice(r), unit: r.unit || "pcs" });
   }
   const total = items.reduce((s, i) => s + i.price * i.pack * i.qty, 0);
   if (total < MIN_ORDER) return res.status(400).json({ error: `Минимальная сумма заказа — ${MIN_ORDER.toLocaleString("ru-RU").replace(/\u00a0/g, " ")} ₸` });
@@ -116,7 +116,7 @@ router.get("/p/:id", async (req, res) => {
   if (!r || !products.isPublic(r)) return res.redirect(go);
   const base = baseUrl(req), fmt = (n) => Math.round(n).toLocaleString("ru-RU").replace(/\u00a0/g, " ");
   const u = unitOf(r.unit);
-  const desc = `${fmt(r.price_per_unit)} ₸ ${u.per} · упаковка ${r.pack_qty} ${plural(r.pack_qty, u.forms)} · опт Medellin`;
+  const desc = `${products.onSale(r) ? `🔥 ${fmt(r.sale_price)} ₸ вместо ${fmt(r.price_per_unit)} ₸` : `${fmt(r.price_per_unit)} ₸`} ${u.per} · упаковка ${r.pack_qty} ${plural(r.pack_qty, u.forms)} · опт Medellin`;
   res.set("Cache-Control", "public, max-age=600").send(`<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${h(r.name)} — Medellin</title><meta property="og:title" content="${h(r.name)}"><meta property="og:description" content="${h(desc)}">
 ${JSON.parse(r.photos || "[]").length ? `<meta property="og:image" content="${base}/photo/${h(r.id)}/0">` : ""}<meta property="og:type" content="product">

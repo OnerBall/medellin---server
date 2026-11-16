@@ -94,6 +94,14 @@ h2 button{font-family:Inter;font-size:14px;color:var(--gold);font-weight:500}
 .card{border-radius:var(--r);overflow:hidden;text-align:left;background:linear-gradient(160deg,rgba(245,235,221,.06),rgba(245,235,221,.02));box-shadow:inset 0 0 0 1px rgba(245,235,221,.1);position:relative;display:block;width:100%}
 .card .img{aspect-ratio:3/4;background:#2A0A0F center/cover;position:relative}
 .card .tag{position:absolute;left:10px;top:10px;font-size:11px;font-weight:700;padding:4px 8px;border-radius:8px;background:var(--rose);color:#fff}
+
+.card .tag.sale{background:#E5484D}
+.card .old,.prices s{color:var(--cream2);font-weight:500;text-decoration:line-through}
+.card .old{font-size:12.5px;margin-top:6px}.card .old+.p{margin-top:0}
+.prices s{font-size:17px}
+.prices .disc{font-size:13px;font-weight:800;color:#fff;background:#E5484D;padding:3px 8px;border-radius:8px}
+.salebn{display:flex;align-items:center;gap:14px;width:100%;padding:16px 18px;margin:4px 0 6px;border-radius:var(--r);text-align:left;color:#fff;background:linear-gradient(120deg,#B4232C,#E5484D 60%,#F08A4B);box-shadow:0 12px 30px rgba(229,72,77,.3)}
+.salebn .ic{font-size:30px}.salebn b{display:block;font-size:19px}.salebn small{font-size:13px;opacity:.9}.salebn i{margin-left:auto;font-style:normal;font-size:22px}
 .card .tag.out{background:rgba(22,5,7,.75);color:var(--cream2)}
 .card .b{padding:10px 12px 12px}
 .card .n{font-size:14px;font-weight:500;line-height:1.25;height:35px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
@@ -224,7 +232,7 @@ function render() {
   const cur = S.stack[S.stack.length - 1];
   if (tg) S.stack.length > 1 ? tg.BackButton.show() : tg.BackButton.hide();
   app.innerHTML = VIEWS[cur.name](cur.params);
-  const tabFor = { home: "home", section: "cat", catalog: "cat", cart: "cart", profile: "profile" }[cur.name];
+  const tabFor = { home: "home", section: "cat", sale: "cat", catalog: "cat", cart: "cart", profile: "profile" }[cur.name];
   $("#nav").innerHTML = ["product", "cart", "done", "country"].includes(cur.name) ? "" : tabs(tabFor);
   bind(cur);
 }
@@ -232,10 +240,13 @@ function render() {
 const tabs = (on) => `<nav class="tabs">${[["home", "Главная", I.home], ["cat", "Каталог", I.grid], ["cart", "Корзина", I.cart], ["profile", "Профиль", I.user]]
   .map(([k, l, s]) => `<button class="tab ${on === k ? "on" : ""}" data-tab="${k}">${s}${l}${k === "cart" && cartCount() ? `<span class="badge">${cartCount()}</span>` : ""}</button>`).join("")}</nav>`;
 
-const card = (p) => `<button class="card" data-p="${p.id}"><div class="img" style="background-image:url('${p.photos[0]}')">${p.hasVideo ? '<span class="play">▶</span>' : ""}${!p.inStock ? '<span class="tag out">Нет в наличии</span>' : p.isNew ? '<span class="tag">Новинка</span>' : ""}</div>
-  <div class="b"><div class="n">${esc(p.name)}</div><div class="p">${money(p.price)} ₸ / ${p.unit.label}</div>${alt(p.price) ? `<div class="alt">${alt(p.price)}</div>` : ""}<div class="q">упаковка ${p.pack} ${plural(p.pack, ...p.unit.forms)}</div></div>${p.inStock ? `<span class="add" data-add="${p.id}" role="button" aria-label="В корзину">+</span>` : ""}</button>`;
+const card = (p) => `<button class="card" data-p="${p.id}"><div class="img" style="background-image:url('${p.photos[0]}')">${p.hasVideo ? '<span class="play">▶</span>' : ""}${!p.inStock ? '<span class="tag out">Нет в наличии</span>' : p.sale ? `<span class="tag sale">−${p.sale}%</span>` : p.isNew ? '<span class="tag">Новинка</span>' : ""}</div>
+  <div class="b"><div class="n">${esc(p.name)}</div>${p.oldPrice ? `<div class="old">${money(p.oldPrice)} ₸</div>` : ""}<div class="p">${money(p.price)} ₸ / ${p.unit.label}</div>${alt(p.price) ? `<div class="alt">${alt(p.price)}</div>` : ""}<div class="q">упаковка ${p.pack} ${plural(p.pack, ...p.unit.forms)}</div></div>${p.inStock ? `<span class="add" data-add="${p.id}" role="button" aria-label="В корзину">+</span>` : ""}</button>`;
 
 const emptyCatalog = () => `<div class="empty"><b>Каталог наполняется</b>Скоро здесь появятся товары. А пока — пишите нам в WhatsApp.</div>`;
+
+const saleItems = () => S.data.products.filter((p) => p.sale && p.inStock).sort((a, b) => b.sale - a.sale);
+const saleBanner = () => { const s = saleItems(); return s.length ? `<button class="salebn" data-sale><span class="ic">🔥</span><span><b>Распродажа</b><small>${s.length} ${plural(s.length, "товар", "товара", "товаров")} · скидки до −${s[0].sale}%</small></span><i>→</i></button>` : ""; };
 
 /* ---------- экраны ---------- */
 const VIEWS = {
@@ -258,13 +269,20 @@ const VIEWS = {
     const news = d.products.filter((p) => p.inStock).slice(0, 10);
     return head + `
       <div class="banner satin"><b>Заказ от ${money(d.shop.minOrder)} ₸</b><p>Опт · доставка по Казахстану и СНГ</p><button class="pill" data-tab="cat">Смотреть каталог</button><img src="img/logo.png" alt=""></div>
+      ${saleBanner()}
       <h2>Разделы</h2>
       <div class="sections">${d.sections.map((s) => `<button class="sec sec-${s.key}" data-sec="${s.key}"><div class="ph" style="background-image:url('img/sec-${s.key}.jpg')"></div><span>${s.title}</span><small>${s.count ? s.count + " " + plural(s.count, "товар", "товара", "товаров") + " →" : "скоро"}</small></button>`).join("")}</div>
       ${news.length ? `<h2>Новинки <button data-tab="cat">Все →</button></h2><div class="hrow">${news.map(card).join("")}</div>` : emptyCatalog()}`;
   },
+  sale() {
+    const items = saleItems();
+    return `<div class="back"><button class="icon-btn glass" data-back aria-label="Назад">${I.back}</button><h1>🔥 Распродажа</h1></div>
+      <div class="toolbar"><span>${items.length} ${plural(items.length, "товар", "товара", "товаров")} со скидкой</span></div>
+      ${items.length ? `<div class="grid">${items.map(card).join("")}</div>` : `<div class="empty"><b>Сейчас скидок нет</b>Загляните позже — мы часто добавляем товары в распродажу</div>`}`;
+  },
   catalog() {
     const d = S.data;
-    return `<div class="back"><h1>Каталог</h1></div>` + d.sections.map((s) => `<h2>${s.title} ${s.count ? `<button data-sec="${s.key}">Все ${s.count} →</button>` : ""}</h2>
+    return `<div class="back"><h1>Каталог</h1></div>${saleBanner()}` + d.sections.map((s) => `<h2>${s.title} ${s.count ? `<button data-sec="${s.key}">Все ${s.count} →</button>` : ""}</h2>
       <div class="chips">${s.categories.filter((c) => c.count).map((c) => `<button class="chip" data-sec="${s.key}" data-cat="${c.key}">${c.title}<small>${c.count}</small></button>`).join("") || '<span class="muted" style="font-size:14px;padding:8px 2px">Скоро появятся товары</span>'}</div>`).join("");
   },
   section({ key, cat, size }) {
@@ -286,7 +304,7 @@ const VIEWS = {
       <div class="nav"><button class="icon-btn" data-back aria-label="Назад">${I.back}</button><button class="icon-btn" data-share aria-label="Поделиться">${I.share}</button></div>
       ${p.media.length > 1 ? `<div class="dots">${p.media.map((_, i) => `<i class="${i ? "" : "on"}"></i>`).join("")}</div>` : ""}</div>
       <div class="pname">${esc(p.name)}</div>
-      <div class="prices"><b>${money(p.price)} ₸</b><span>${p.unit.per}${alt(p.price) ? " · " + alt(p.price) : ""}</span></div>
+      <div class="prices"><b>${money(p.price)} ₸</b>${p.oldPrice ? `<s>${money(p.oldPrice)} ₸</s><span class="disc">−${p.sale}%</span>` : ""}<span>${p.unit.per}${alt(p.price) ? " · " + alt(p.price) : ""}</span></div>
       <div class="pack glass"><div><small>Цена за упаковку · ${p.pack} ${plural(p.pack, ...p.unit.forms)}</small><b>${money(p.price * p.pack)} ₸</b>${alt(p.price * p.pack) ? `<div class="alt">${alt(p.price * p.pack)}</div>` : ""}</div><span style="color:var(--rose);font-size:13px;font-weight:600">${p.inStock ? "Опт" : "Нет в наличии"}</span></div>
       ${p.sizes.length ? `<div class="lbl">Размер${p.sizes.length > 1 ? " — выберите" : ""}</div><div class="sizes">${p.sizes.map((z) => `<button class="size ${size === z ? "on" : ""}" data-psize="${esc(z)}">${esc(z)}</button>`).join("")}</div>` : ""}
       ${p.colors.length ? `<div class="lbl">Цвета</div><div class="colors">${p.colors.map((c) => `<i style="background:${esc(c.hex)}" title="${esc(c.name)}"></i>`).join("")}</div>` : ""}
@@ -407,6 +425,7 @@ function bind(cur) {
   app.querySelectorAll("[data-tab]").forEach((b) => (b.onclick = () => { haptic(); tab(b.dataset.tab === "cat" ? "catalog" : b.dataset.tab); }));
   $("#nav").querySelectorAll("[data-tab]").forEach((b) => (b.onclick = () => { haptic(); tab(b.dataset.tab === "cat" ? "catalog" : b.dataset.tab); }));
   app.querySelectorAll("[data-back]").forEach((b) => (b.onclick = back));
+  app.querySelectorAll("[data-sale]").forEach((b) => (b.onclick = () => { haptic(); go("sale"); }));
   app.querySelectorAll("[data-p]").forEach((b) => (b.onclick = (e) => {
     if (e.target.closest("[data-add]")) { e.stopPropagation(); return addToCart(e.target.closest("[data-add]").dataset.add); }
     haptic(); S.pqty = 1; go("product", { id: b.dataset.p });

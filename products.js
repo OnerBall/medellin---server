@@ -45,6 +45,9 @@ function mergeMedia(row, incoming) {
   return [...old, ...incoming.filter((m) => !uids.has(m.uid))].slice(0, MAX_MEDIA);
 }
 
+// распродажа: цена со скидкой, если она меньше обычной
+const onSale = (r) => r.sale_price > 0 && r.price_per_unit > 0 && r.sale_price < r.price_per_unit;
+const effPrice = (r) => (onSale(r) ? r.sale_price : r.price_per_unit);
 const complete = (r) => r.category && BY_KEY[r.category] && r.price_per_unit > 0 && JSON.parse(r.photos || "[]").length > 0;
 
 /**
@@ -100,7 +103,7 @@ function importPost(post) {
 }
 
 function update(id, fields) {
-  const allowed = ["category", "price_per_unit", "pack_qty", "in_stock", "hidden", "name", "admin_msg_id", "unit"];
+  const allowed = ["category", "price_per_unit", "pack_qty", "in_stock", "hidden", "name", "admin_msg_id", "unit", "sale_price"];
   const sets = Object.keys(fields).filter((k) => allowed.includes(k));
   if (!sets.length) return get(id);
   db.prepare(`UPDATE products SET ${sets.map((k) => `${k}=@${k}`).join(", ")}, updated_at=@u WHERE id=@id`).run({ ...fields, u: Date.now(), id });
@@ -138,7 +141,7 @@ function toJSON(r) {
   const u = unitOf(r.unit);
   return {
     id: r.id, name: r.name, section: c ? c.section : null, category: r.category, description: r.description || "",
-    price: r.price_per_unit, pack: r.pack_qty, unit: { key: r.unit || "pcs", ...u }, sizes: JSON.parse(r.sizes || "[]"),
+    price: effPrice(r), oldPrice: onSale(r) ? r.price_per_unit : null, sale: onSale(r) ? Math.round((1 - r.sale_price / r.price_per_unit) * 100) : 0, pack: r.pack_qty, unit: { key: r.unit || "pcs", ...u }, sizes: JSON.parse(r.sizes || "[]"),
     colors: JSON.parse(r.colors || "[]"), country: r.country || "", inStock: !!r.in_stock,
     isNew: Date.now() - r.created_at < NEW_DAYS * 86400e3, photos: photos.map((_, i) => `/photo/${r.id}/${i}`), media,
     hasVideo: media.some((m) => m.type === "video"), createdAt: r.created_at
@@ -151,4 +154,4 @@ function listPublic() {
 
 const packText = (r) => `${r.pack_qty} ${plural(r.pack_qty, unitOf(r.unit).forms)}`;
 
-module.exports = { importPost, update, remove, get, toJSON, listPublic, isPublic, mediaOf, packText, VIDEO_MAX };
+module.exports = { onSale, effPrice, importPost, update, remove, get, toJSON, listPublic, isPublic, mediaOf, packText, VIDEO_MAX };
