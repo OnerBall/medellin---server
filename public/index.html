@@ -301,6 +301,7 @@ const VIEWS = {
   },
   product({ id, size }) {
     const p = byId(id); if (!p) return `<div class="empty"><b>Товар не найден</b>Возможно, его уже убрали из каталога</div>`;
+    if (size === undefined) { const last = [...S.cart].reverse().find((i) => i.id === id); if (last && last.size) { size = last.size; S.stack[S.stack.length - 1].params.size = size; } }
     const qty = S.pqty || 1;
     const inc = inCart(p, size), n = inc ? inc.qty : 0;
     const info = [["Раздел", `${(sec(p.section) || {}).title} · ${catTitle(p.category)}`], p.country && ["Производство", p.country], ["В упаковке", `${p.pack} ${plural(p.pack, ...p.unit.forms)}`], ["Доставка", "Казахстан и СНГ"]].filter(Boolean);
@@ -315,7 +316,7 @@ const VIEWS = {
       <div class="info glass">${info.map(([a, b]) => `<div><span>${a}</span><span>${esc(b)}</span></div>`).join("")}</div>
       ${p.description ? `<div class="lbl">Описание</div><div class="desc">${esc(p.description)}</div>` : ""}
       <div class="bar">${p.inStock ? (inc ? `<div class="stepper"><button data-incq="-1" aria-label="Убрать одну">−</button><b>${n}</b><button data-incq="1" aria-label="Добавить ещё">+</button></div>
-        <button class="btn" data-tab="cart">${I.check}В корзине · ${money(p.price * p.pack * n)} ₸</button>` : `<div class="stepper"><button data-pq="-1" aria-label="Меньше">−</button><b>${qty}</b><button data-pq="1" aria-label="Больше">+</button></div>
+        <button class="btn" data-tab="cart">${I.check}В корзине · ${money(p.price * p.pack * n)} ₸</button>` : `<div class="stepper"><button data-pq="-1" aria-label="Меньше" ${qty <= 1 ? 'style="opacity:.3"' : ""}>−</button><b>${qty}</b><button data-pq="1" aria-label="Больше">+</button></div>
         <button class="btn" data-buy="${p.id}">${I.cart}В корзину · ${money(p.price * p.pack * qty)} ₸</button>`)
         : `<button class="btn ghost" data-wa="Здравствуйте! Когда будет в наличии: ${esc(p.name)}?">${I.wa}Спросить о наличии</button>`}</div>`;
   },
@@ -504,7 +505,7 @@ function bind(cur) {
     const buy = app.querySelector("[data-buy]");
     if (buy) buy.onclick = () => {
       if (p.sizes.length > 1 && !cur.params.size) { haptic("err"); return toast("Выберите размер"); }
-      addToCart(p.id, S.pqty || 1, cur.params.size || ""); S.pqty = 1; back();
+      const z = cur.params.size || (p.sizes.length === 1 ? p.sizes[0] : ""); addToCart(p.id, S.pqty || 1, z); S.pqty = 1; go("product", { ...cur.params, size: z }, true);
     };
   }
   if (cur.name === "cart") {
