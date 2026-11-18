@@ -181,6 +181,11 @@ textarea.field{height:80px;padding:14px 16px;resize:none}
 .toast.show{transform:translate(-50%,0)}
 .skel{height:200px;border-radius:var(--r);background:rgba(245,235,221,.05);margin-top:60px}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.check svg{stroke-dashoffset:0}}
+.pcolors{display:flex;gap:10px;overflow-x:auto;padding:4px 2px 8px;margin:0 -2px;scrollbar-width:none}.pcolors::-webkit-scrollbar{display:none}
+.pcolor{flex:none;width:58px;height:72px;border-radius:14px;background:center/cover;box-shadow:inset 0 0 0 1px rgba(128,110,95,.25);position:relative;transition:transform .15s}
+.pcolor.on{box-shadow:0 0 0 2.5px var(--gold),0 6px 16px rgba(0,0,0,.25);transform:translateY(-2px)}
+.pcolor b{position:absolute;right:4px;bottom:4px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:rgba(0,0,0,.6);color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center}
+.citem .img{position:relative}
 </style></head><body>
 <div class="wrap" id="app"><div class="skel"></div></div>
 <div id="nav"></div>
@@ -216,6 +221,7 @@ const alt = (kzt) => { const c = ctry(); if (!c || c.cur === "KZT" || !c.rate) r
 const byId = (id) => S.data.products.find((p) => p.id === id);
 const sec = (k) => S.data.sections.find((s) => s.key === k);
 const catTitle = (k) => { for (const s of S.data.sections) for (const c of s.categories) if (c.key === k) return c.title; return ""; };
+const cc = (i) => (Number.isInteger(i.c) ? i.c : -1); // расцветка позиции (-1 — не выбрана)
 const cartCount = () => S.cart.reduce((a, i) => a + i.qty, 0);
 const saveCart = () => { S.cart = S.cart.filter((i) => byId(i.id)); store.set("medellin_cart", S.cart); };
 
@@ -299,11 +305,15 @@ const VIEWS = {
       ${sizes.length > 1 ? `<div class="chips sizes-f"><span class="muted" style="font-size:13px;align-self:center;flex:none">Размер:</span>${sizes.map((z) => `<button class="${size === z ? "on" : ""}" data-size="${esc(z)}">${esc(z)}</button>`).join("")}</div>` : ""}
       ${items.length ? `<div class="grid">${items.map(card).join("")}</div>` : `<div class="empty"><b>Пока пусто</b>В этой категории скоро появятся товары</div>`}`;
   },
-  product({ id, size }) {
+  product({ id, size, color }) {
     const p = byId(id); if (!p) return `<div class="empty"><b>Товар не найден</b>Возможно, его уже убрали из каталога</div>`;
-    if (size === undefined) { const last = [...S.cart].reverse().find((i) => i.id === id); if (last && last.size) { size = last.size; S.stack[S.stack.length - 1].params.size = size; } }
+    const cp = S.stack[S.stack.length - 1].params;
+    if (size === undefined || color === undefined) { const last = [...S.cart].reverse().find((i) => i.id === id);
+      if (size === undefined && last && last.size) size = cp.size = last.size;
+      if (color === undefined && last && cc(last) >= 0) color = cp.color = cc(last); }
+    const multi = p.photos.length > 1, col = Number.isInteger(color) ? color : -1;
     const qty = S.pqty || 1;
-    const inc = inCart(p, size), n = inc ? inc.qty : 0;
+    const inc = inCart(p, size, col), n = inc ? inc.qty : 0;
     const info = [["Раздел", `${(sec(p.section) || {}).title} · ${catTitle(p.category)}`], p.country && ["Производство", p.country], ["В упаковке", `${p.pack} ${plural(p.pack, ...p.unit.forms)}`], ["Доставка", "Казахстан и СНГ"]].filter(Boolean);
     return `<div class="gallery"><div class="track" id="track">${p.media.map((m) => m.type === "video" ? `<video src="${m.src}" ${m.poster ? `poster="${m.poster}"` : ""} playsinline controls preload="metadata"></video>` : `<div style="background-image:url('${m.src}')"></div>`).join("")}</div>
       <div class="nav"><button class="icon-btn" data-back aria-label="Назад">${I.back}</button><button class="icon-btn" data-share aria-label="Поделиться">${I.share}</button></div>
@@ -311,6 +321,7 @@ const VIEWS = {
       <div class="pname">${esc(p.name)}</div>
       <div class="prices"><b>${money(p.price)} ₸</b>${p.oldPrice ? `<s>${money(p.oldPrice)} ₸</s><span class="disc">−${p.sale}%</span>` : ""}<span>${p.unit.per}${alt(p.price) ? " · " + alt(p.price) : ""}</span></div>
       <div class="pack glass"><div><small>Цена за упаковку · ${p.pack} ${plural(p.pack, ...p.unit.forms)}</small><b>${money(p.price * p.pack)} ₸</b>${alt(p.price * p.pack) ? `<div class="alt">${alt(p.price * p.pack)}</div>` : ""}</div><span style="color:var(--rose);font-size:13px;font-weight:600">${p.inStock ? "Опт" : "Нет в наличии"}</span></div>
+      ${multi ? `<div class="lbl">Расцветка${col >= 0 ? ` — №${col + 1}` : " — выберите"}</div><div class="pcolors">${p.photos.map((ph, k) => `<button class="pcolor ${col === k ? "on" : ""}" data-pcolor="${k}" style="background-image:url('${ph}')" aria-label="Расцветка ${k + 1}"><b>${k + 1}</b></button>`).join("")}</div>` : ""}
       ${p.sizes.length ? `<div class="lbl">Размер${p.sizes.length > 1 ? " — выберите" : ""}</div><div class="sizes">${p.sizes.map((z) => `<button class="size ${size === z ? "on" : ""}" data-psize="${esc(z)}">${esc(z)}</button>`).join("")}</div>` : ""}
       ${p.colors.length ? `<div class="lbl">Цвета</div><div class="colors">${p.colors.map((c) => `<i style="background:${esc(c.hex)}" title="${esc(c.name)}"></i>`).join("")}</div>` : ""}
       <div class="info glass">${info.map(([a, b]) => `<div><span>${a}</span><span>${esc(b)}</span></div>`).join("")}</div>
@@ -326,8 +337,8 @@ const VIEWS = {
     const total = S.cart.reduce((a, i) => { const p = byId(i.id); return a + (p ? p.price * p.pack * i.qty : 0); }, 0);
     const f = S.form;
     return `<div class="back" style="justify-content:space-between"><div style="display:flex;align-items:center;gap:12px"><button class="icon-btn glass" data-back aria-label="Назад">${I.back}</button><h1>Корзина</h1></div><button class="chip" id="clearcart">Очистить</button></div>
-      ${S.cart.map((i, k) => { const p = byId(i.id); return `<div class="citem glass"><div class="img" style="background-image:url('${p.photos[0]}')"></div>
-        <div class="m"><b>${esc(p.name)}</b><small>${i.size ? esc(i.size) + " · " : ""}${p.pack} ${plural(p.pack, ...p.unit.forms)} в упаковке · ${money(p.price)} ₸/${p.unit.label}</small><span class="s">${money(p.price * p.pack * i.qty)} ₸</span></div>
+      ${S.cart.map((i, k) => { const p = byId(i.id); return `<div class="citem glass"><div class="img" style="background-image:url('${p.photos[cc(i) >= 0 && p.photos[cc(i)] ? cc(i) : 0]}')"></div>
+        <div class="m"><b>${esc(p.name)}</b><small>${i.size ? esc(i.size) + " · " : ""}${cc(i) >= 0 ? `расцветка №${cc(i) + 1} · ` : ""}${p.pack} ${plural(p.pack, ...p.unit.forms)} в упаковке · ${money(p.price)} ₸/${p.unit.label}</small><span class="s">${money(p.price * p.pack * i.qty)} ₸</span></div>
         <div class="stepper"><button data-cq="${k}:-1" aria-label="Меньше">−</button><b>${i.qty}</b><button data-cq="${k}:1" aria-label="Больше">+</button></div></div>`; }).join("")}
       <div class="total"><div><small>Итого · ${cartCount()} упак.</small><b>${money(total)} ₸</b>${alt(total) ? `<div class="alt" style="font-size:14px">${alt(total)}</div>` : ""}</div></div>
       ${total < S.data.shop.minOrder ? `<div class="minbar">Минимальная сумма заказа — <b>${money(S.data.shop.minOrder)} ₸</b>. Добавьте ещё на <b class="gold">${money(S.data.shop.minOrder - total)} ₸</b>
@@ -386,16 +397,17 @@ document.addEventListener("visibilitychange", () => document.visibilityState ===
 let searchT = null;
 
 // позиция этого товара (с выбранным размером) в корзине
-function inCart(p, size) {
+function inCart(p, size, color = -1) {
   const z = size || (p.sizes.length === 1 ? p.sizes[0] : "");
   if (p.sizes.length > 1 && !z) return null;
-  return S.cart.find((i) => i.id === p.id && i.size === z) || null;
+  if (p.photos.length > 1 && color < 0) return null;
+  return S.cart.find((i) => i.id === p.id && i.size === z && cc(i) === color) || null;
 }
-function addToCart(id, qty = 1, size = "") {
+function addToCart(id, qty = 1, size = "", color = -1) {
   const p = byId(id); if (!p) return;
   if (!size && p.sizes.length === 1) size = p.sizes[0];
-  const ex = S.cart.find((i) => i.id === id && i.size === size);
-  if (ex) ex.qty += qty; else S.cart.push({ id, size, qty });
+  const ex = S.cart.find((i) => i.id === id && i.size === size && cc(i) === color);
+  if (ex) ex.qty += qty; else S.cart.push({ id, size, c: color, qty });
   saveCart(); haptic("ok"); toast(`Добавлено: ${p.name}`); ev("cart", id);
 }
 /* ---------- AI-ассистент: голос и умный подбор ---------- */
@@ -496,16 +508,24 @@ function bind(cur) {
       if (tg && tg.showPopup) tg.showPopup({ title: "Поделиться товаром", message: "Куда отправить?", buttons: [{ id: "wa", type: "default", text: "WhatsApp" }, { id: "tg", type: "default", text: "Telegram" }, { type: "cancel" }] }, (b) => { if (b === "wa") viaWa(); else if (b === "tg") viaTg(); });
       else viaWa();
     };
+    app.querySelectorAll("[data-pcolor]").forEach((b) => (b.onclick = () => {
+      haptic(); const k = +b.dataset.pcolor, y = window.scrollY;
+      go("product", { ...cur.params, color: cur.params.color === k ? -1 : k }, true); window.scrollTo(0, y);
+      const tr = $("#track"), mi = p.media.findIndex((m) => m.src === p.photos[k]);
+      if (tr && cur.params.color !== k) tr.scrollTo({ left: tr.clientWidth * (mi >= 0 ? mi : k), behavior: "smooth" });
+    }));
     app.querySelectorAll("[data-incq]").forEach((b) => (b.onclick = () => {
-      const it = inCart(p, cur.params.size || ""); if (!it) return;
+      const it = inCart(p, cur.params.size || "", Number.isInteger(cur.params.color) ? cur.params.color : -1); if (!it) return;
       it.qty += +b.dataset.incq;
       if (it.qty <= 0) { S.cart.splice(S.cart.indexOf(it), 1); haptic("ok"); toast("Убрано из корзины"); } else haptic();
       saveCart(); S.pqty = 1; go("product", cur.params, true);
     }));
     const buy = app.querySelector("[data-buy]");
     if (buy) buy.onclick = () => {
+      const col = Number.isInteger(cur.params.color) ? cur.params.color : -1;
+      if (p.photos.length > 1 && col < 0) { haptic("err"); const pc = app.querySelector(".pcolors"); if (pc) pc.scrollIntoView({ behavior: "smooth", block: "center" }); return toast("Выберите расцветку"); }
       if (p.sizes.length > 1 && !cur.params.size) { haptic("err"); return toast("Выберите размер"); }
-      const z = cur.params.size || (p.sizes.length === 1 ? p.sizes[0] : ""); addToCart(p.id, S.pqty || 1, z); S.pqty = 1; go("product", { ...cur.params, size: z }, true);
+      const z = cur.params.size || (p.sizes.length === 1 ? p.sizes[0] : ""); addToCart(p.id, S.pqty || 1, z, col); S.pqty = 1; go("product", { ...cur.params, size: z }, true);
     };
   }
   if (cur.name === "cart") {
@@ -562,8 +582,9 @@ async function loadMyOrders() {
         const p = byId(it.id);
         if (!p || !p.inStock) { miss++; continue; }
         const size = p.sizes.includes(it.size) ? it.size : (p.sizes.length === 1 ? p.sizes[0] : "");
-        const ex = S.cart.find((c) => c.id === it.id && c.size === size);
-        if (ex) ex.qty += it.qty; else S.cart.push({ id: it.id, size, qty: it.qty });
+        const c = Number.isInteger(it.c) && it.c < p.photos.length ? it.c : -1;
+        const ex = S.cart.find((x) => x.id === it.id && x.size === size && cc(x) === c);
+        if (ex) ex.qty += it.qty; else S.cart.push({ id: it.id, size, c, qty: it.qty });
         added++;
       }
       saveCart(); ev("repeat", null, o.id, added);

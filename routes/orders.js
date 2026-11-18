@@ -8,6 +8,8 @@ const { notifyNewOrder, cancelByClient, CANCELLABLE, STATUS_LABELS } = require("
 const rates = require("../rates");
 const { unitOf, plural } = require("../units");
 
+// «(M, расцветка №3)» — размер и выбранная расцветка позиции заказа
+const itemTag = (i) => { const t = [i.size, Number.isInteger(i.c) && i.c >= 0 ? `расцветка №${i.c + 1}` : ""].filter(Boolean).join(", "); return t ? ` (${t})` : ""; };
 const router = express.Router();
 const MIN_ORDER = parseInt(process.env.MIN_ORDER || "50000", 10);
 
@@ -47,7 +49,8 @@ router.post("/api/orders", async (req, res) => {
     if (!r.in_stock) return res.status(409).json({ error: `«${r.name}» сейчас нет в наличии` });
     const sizes = JSON.parse(r.sizes || "[]");
     const size = sizes.includes(it.size) ? it.size : "";
-    items.push({ id: r.id, name: r.name, size, qty, pack: r.pack_qty, price: products.effPrice(r), unit: r.unit || "pcs" });
+    const nph = JSON.parse(r.photos || "[]").length, c = Number.isInteger(it.c) && it.c >= 0 && it.c < nph ? it.c : -1;
+    items.push({ id: r.id, name: r.name, size, c, qty, pack: r.pack_qty, price: products.effPrice(r), unit: r.unit || "pcs" });
   }
   const total = items.reduce((s, i) => s + i.price * i.pack * i.qty, 0);
   if (total < MIN_ORDER) return res.status(400).json({ error: `Минимальная сумма заказа — ${MIN_ORDER.toLocaleString("ru-RU").replace(/\u00a0/g, " ")} ₸` });
@@ -70,7 +73,7 @@ router.post("/api/orders", async (req, res) => {
   const fmt = (n) => Math.round(n).toLocaleString("ru-RU").replace(/\u00a0/g, " ");
   const bc = rates.BY_CODE[buyer];
   const waText = `Здравствуйте! Заказ №${id} из каталога Medellin\n\n` +
-    items.map((i, k) => `${k + 1}. ${i.name}${i.size ? ` (${i.size})` : ""} × ${i.qty} уп. — ${fmt(i.price * i.pack * i.qty)} ₸`).join("\n") +
+    items.map((i, k) => `${k + 1}. ${i.name}${itemTag(i)} × ${i.qty} уп. — ${fmt(i.price * i.pack * i.qty)} ₸`).join("\n") +
     `\n\nИтого: ${fmt(total)} ₸` + (row.shown_total && bc ? ` (≈ ${fmt(row.shown_total)} ${bc.sym})` : "") +
     `\n👤 ${name}, ${city}\n📞 ${phone}\n\n📷 Заказ с фото: ${link}`;
   res.json({ id, total, items, link, waText });
@@ -86,7 +89,7 @@ router.get("/o/:key", (req, res) => {
   if (!o || !o.token || o.token !== token) return res.status(404).send("Заказ не найден");
   const base = baseUrl(req);
   const fmt = (n) => Math.round(n).toLocaleString("ru-RU").replace(/\u00a0/g, " ");
-  const items = JSON.parse(o.items).map((i) => { const r = products.get(i.id); const ph = r && JSON.parse(r.photos || "[]").length ? `/photo/${r.id}/0` : ""; return { ...i, ph }; });
+  const items = JSON.parse(o.items).map((i) => { const r = products.get(i.id); const n = r ? JSON.parse(r.photos || "[]").length : 0; const ph = n ? `/photo/${r.id}/${i.c >= 0 && i.c < n ? i.c : 0}` : ""; return { ...i, ph }; });
   const og = items.find((i) => i.ph);
   res.set("Cache-Control", "no-store").send(`<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Заказ №${h(o.id)} — Medellin</title>
@@ -98,7 +101,7 @@ h1{font-family:Georgia,serif;font-size:26px;margin:6px 0 4px}.m{color:#C9B8A6;fo
 .i img{width:96px;height:120px;object-fit:cover;border-radius:12px;background:#2A0A0F;flex:none}.i b{display:block;font-weight:600}.i small{color:#C9B8A6}.i .p{color:#D9B26F;font-weight:700;margin-top:4px}
 .t{margin-top:16px;padding:16px;border-radius:18px;background:linear-gradient(135deg,rgba(217,178,111,.18),rgba(90,15,26,.3));box-shadow:inset 0 0 0 1px rgba(217,178,111,.45);font-size:24px;font-weight:700;color:#D9B26F}</style></head>
 <body><div class="w"><h1>Заказ №${h(o.id)}</h1><div class="m">${new Date(o.created_at + 5 * 3600e3).toISOString().slice(0, 16).replace("T", " ")} · ${h(o.name)} · ${h(o.city)} · ${h(o.phone)}</div>
-${items.map((i, k) => `<div class="i">${i.ph ? `<img src="${i.ph}" alt="">` : ""}<div><b>${k + 1}. ${h(i.name)}</b><small>${i.size ? h(i.size) + " · " : ""}${i.qty} уп. × ${i.pack} ${plural(i.pack, unitOf(i.unit).forms)}</small><div class="p">${fmt(i.price * i.pack * i.qty)} ₸</div></div></div>`).join("")}
+${items.map((i, k) => `<div class="i">${i.ph ? `<img src="${i.ph}" alt="">` : ""}<div><b>${k + 1}. ${h(i.name)}</b><small>${i.size ? h(i.size) + " · " : ""}${i.c >= 0 ? `расцветка №${i.c + 1} · ` : ""}${i.qty} уп. × ${i.pack} ${plural(i.pack, unitOf(i.unit).forms)}</small><div class="p">${fmt(i.price * i.pack * i.qty)} ₸</div></div></div>`).join("")}
 <div class="t">Итого: ${fmt(o.total_kzt)} ₸</div></div></body></html>`);
 });
 
@@ -132,7 +135,7 @@ router.post("/api/my-orders", (req, res) => {
   const rows = db.prepare("SELECT * FROM orders WHERE tg_user_id=? ORDER BY created_at DESC LIMIT 20").all(user.id);
   res.json({ items: rows.map((o) => ({ id: o.id, total: o.total_kzt, date: o.created_at, status: o.status,
     statusText: (STATUS_LABELS[o.status] || o.status).replace(/^\S+\s/, ""), count: JSON.parse(o.items).length, canCancel: CANCELLABLE.includes(o.status),
-    items: JSON.parse(o.items).map((i) => ({ id: i.id, size: i.size || "", qty: i.qty })) })) });
+    items: JSON.parse(o.items).map((i) => ({ id: i.id, size: i.size || "", c: Number.isInteger(i.c) ? i.c : -1, qty: i.qty })) })) });
 });
 
 router.post("/api/orders/cancel", (req, res) => {

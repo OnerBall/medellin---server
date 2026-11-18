@@ -163,7 +163,7 @@ const CLIENT_STATUS = { paid: "✅ Оплата по заказу №{id} пол
 
 function orderCaption(o) {
   const items = JSON.parse(o.items);
-  const lines = items.map((i) => `• ${i.name}${i.size ? ` (${i.size})` : ""} × ${i.qty} уп. (${i.qty * i.pack} ${plural(i.qty * i.pack, unitOf(i.unit).forms)}) — ${fmt(i.price * i.pack * i.qty)} ₸`).join("\n");
+  const lines = items.map((i) => `• ${i.name}${itemTag(i)} × ${i.qty} уп. (${i.qty * i.pack} ${plural(i.qty * i.pack, unitOf(i.unit).forms)}) — ${fmt(i.price * i.pack * i.qty)} ₸`).join("\n");
   const who = o.tg_username ? `@${o.tg_username}` : o.tg_user_id ? `tg://user?id=${o.tg_user_id}` : "";
   const bc = rates.BY_CODE[o.buyer_country], pc = rates.BY_CODE[rates.countryByPhone(o.phone)];
   const flags = bc ? `${bc.flag} ${bc.name}` + (pc && pc.code !== bc.code ? ` (номер ${pc.flag})` : "") : pc ? `${pc.flag} ${pc.name} (по номеру)` : "";
@@ -192,7 +192,7 @@ const setSetting = (k, v) => db.prepare("INSERT INTO settings (key,value) VALUES
 function getOrder(id) { return db.prepare("SELECT * FROM orders WHERE id=?").get(id); }
 
 function orderLines(o) {
-  return JSON.parse(o.items).map((i) => `• ${i.name}${i.size ? ` (${i.size})` : ""} × ${i.qty} уп. — ${fmt(i.price * i.pack * i.qty)} ₸`).join("\n");
+  return JSON.parse(o.items).map((i) => `• ${i.name}${itemTag(i)} × ${i.qty} уп. — ${fmt(i.price * i.pack * i.qty)} ₸`).join("\n");
 }
 
 function shownFor(o, total) {
@@ -207,7 +207,7 @@ const altText = (o) => { const c = rates.BY_CODE[o.buyer_country]; return o.show
 function editKb(o) {
   const items = JSON.parse(o.items);
   const rows = items.map((i, k) => [
-    Markup.button.callback(`➖ ${i.name.slice(0, 22)}${i.size ? " " + i.size : ""} · ${i.qty} уп.`, `oit:${o.id}:${k}:-1`),
+    Markup.button.callback(`➖ ${i.name.slice(0, 22)}${i.size ? " " + i.size : ""}${i.c >= 0 ? " №" + (i.c + 1) : ""} · ${i.qty} уп.`, `oit:${o.id}:${k}:-1`),
     Markup.button.callback("➕", `oit:${o.id}:${k}:1`)
   ]);
   rows.push([Markup.button.callback("✅ Готово — сообщить клиенту", `oek:${o.id}`)]);
@@ -221,6 +221,8 @@ function invoiceText(o) {
   return `💳 Счёт по заказу №${o.id} — Medellin\n\n${orderLines(o)}\n\nК оплате: ${fmt(o.total_kzt)} ₸${altText(o)}\n\n${pay}\n\nПосле оплаты пришлите фото чека в этот чат 🤍`;
 }
 
+// «(M, расцветка №3)» — размер и выбранная расцветка позиции заказа
+const itemTag = (i) => { const t = [i.size, Number.isInteger(i.c) && i.c >= 0 ? `расцветка №${i.c + 1}` : ""].filter(Boolean).join(", "); return t ? ` (${t})` : ""; };
 const changed = new Set();
 const waLink = (phone, text) => `https://wa.me/${String(phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(text)}`;
 
@@ -230,9 +232,9 @@ function orderAlbum(o) {
   const media = [];
   items.forEach((i, k) => {
     const r = products.get(i.id);
-    const ph = r && JSON.parse(r.photos || "[]")[0];
+    const phs = r ? JSON.parse(r.photos || "[]") : []; const ph = phs[i.c >= 0 && i.c < phs.length ? i.c : 0];
     if (ph && media.length < 10)
-      media.push({ type: "photo", media: ph, caption: `${k + 1}. ${i.name}${i.size ? ` (${i.size})` : ""} × ${i.qty} уп. — ${fmt(i.price * i.pack * i.qty)} ₸` });
+      media.push({ type: "photo", media: ph, caption: `${k + 1}. ${i.name}${itemTag(i)} × ${i.qty} уп. — ${fmt(i.price * i.pack * i.qty)} ₸` });
   });
   if (media.length) media[0].caption = `🛒 Заказ №${o.id}\n\n` + media[0].caption;
   return media;
