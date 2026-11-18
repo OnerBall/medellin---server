@@ -150,4 +150,48 @@ router.post("/api/orders/cancel", (req, res) => {
 });
 
 router.tgUser = tgUser;
+// ---------- топ покупателей месяца ----------
+// Считаем только завершённые заказы из каталога (оплачен / отправлен) с начала месяца по Алматы.
+// Показываем только имя (первое слово из заказа), флаг и число заказов — без сумм и телефонов.
+db.exec("CREATE TABLE IF NOT EXISTS top_hidden (key TEXT PRIMARY KEY)");
+const MONTHS = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
+const TOP_MIN = parseInt(process.env.TOP_MIN || "3", 10); // показывать топ, когда в нём есть хотя бы столько покупателей
+const TRUST = (process.env.TOP_COUNTRIES || "KZ,RU,KG,UZ").split(",").map((c) => rates.BY_CODE[c.trim()]).filter(Boolean);
+const custKey = (o) => (o.tg_user_id ? `tg:${o.tg_user_id}` : `ph:${String(o.phone || "").replace(/\D/g, "").slice(-10)}`);
+const firstName = (s) => { const w = String(s || "").trim().split(/\s+/)[0] || "Покупатель"; return (w[0].toUpperCase() + w.slice(1).toLowerCase()).slice(0, 18); };
+
+router.get("/api/top", (req, res) => {
+  const now = new Date(Date.now() + 5 * 3600e3);
+  const from = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1) - 5 * 3600e3;
+  const hidden = new Set(db.prepare("SELECT key FROM top_hidden").all().map((r) => r.key));
+  const by = new Map();
+  for (const o of db.prepare("SELECT * FROM orders WHERE status IN ('paid','shipped') AND created_at >= ? ORDER BY created_at").all(from)) {
+    const k = custKey(o);
+    if (hidden.has(k)) continue;
+    const c = by.get(k) || { count: 0, sum: 0 };
+    c.count++; c.sum += o.total_kzt || 0; c.name = firstName(o.name);
+    const cc = rates.BY_CODE[o.buyer_country] || rates.BY_CODE[rates.countryByPhone(o.phone)] || rates.BY_CODE.KZ;
+    c.flag = cc.flag;
+    by.set(k, c);
+  }
+  const all = [...by.values()].sort((a, b) => b.count - a.count || b.sum - a.sum);
+  res.set("Cache-Control", "no-store").json({
+    month: MONTHS[now.getUTCMonth()],
+    countries: TRUST.map((c) => ({ flag: c.flag, name: c.name })),
+    top: all.length >= TOP_MIN ? all.slice(0, 3).map(({ flag, name, count }) => ({ flag, name, count })) : [],
+  });
+});
+
+// покупатель сам решает, показываться ли в топе
+router.post("/api/top/me", (req, res) => {
+  const user = tgUser((req.body || {}).initData);
+  if (!user) return res.json({ show: true });
+  const key = `tg:${user.id}`;
+  if (typeof req.body.show === "boolean") {
+    if (req.body.show) db.prepare("DELETE FROM top_hidden WHERE key = ?").run(key);
+    else db.prepare("INSERT OR IGNORE INTO top_hidden (key) VALUES (?)").run(key);
+  }
+  res.json({ show: !db.prepare("SELECT 1 FROM top_hidden WHERE key = ?").get(key) });
+});
+
 module.exports = router;

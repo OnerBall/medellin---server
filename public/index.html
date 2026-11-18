@@ -193,6 +193,17 @@ textarea.field{height:80px;padding:14px 16px;resize:none}
 .crow span{flex:1;font-size:15px;font-weight:500}
 .stepper.sm button{width:38px;height:40px;font-size:20px}.stepper.sm b{min-width:22px;font-size:16px}
 .chint{font-size:13px;color:var(--gold);margin:-4px 0 8px}
+.trust{display:flex;align-items:center;gap:14px;padding:14px 16px;margin-bottom:14px}
+.trust .fl{display:flex;flex:none}.trust .fl i{font-style:normal;font-size:24px;margin-right:-6px;filter:drop-shadow(0 2px 4px rgba(0,0,0,.35))}
+.trust .fl i:last-child{margin-right:0}.trust b{display:block;font-size:15px;font-weight:600}.trust small{display:block;font-size:13px;color:var(--cream2);margin-top:2px}
+.top3{padding:14px 16px 6px;margin-bottom:18px;box-shadow:inset 0 0 0 1px rgba(217,178,111,.35)}
+.top3 .th{font-family:Playfair,Georgia,serif;font-size:19px;color:var(--gold);margin-bottom:6px}
+.top3 .tr{display:flex;align-items:center;gap:10px;padding:11px 0;border-top:1px solid var(--line)}
+.top3 .md{font-size:22px}.top3 .fg{font-size:20px}.top3 b{flex:1;font-weight:600;font-size:16px}.top3 .ct{color:var(--gold);font-size:14px;font-weight:600}
+.switch{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;padding:15px 0;font-size:16px;color:var(--cream);text-align:left}
+.switch i{flex:none;width:46px;height:28px;border-radius:14px;background:rgba(245,235,221,.15);position:relative;transition:background .2s}
+.switch i::after{content:"";position:absolute;left:3px;top:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:transform .2s}
+.switch.on i{background:var(--gold)}.switch.on i::after{transform:translateX(18px)}
 </style></head><body>
 <div class="wrap" id="app"><div class="skel"></div></div>
 <div id="nav"></div>
@@ -213,6 +224,12 @@ const I = {
  check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>',
  wa:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a9 9 0 0 0-7.8 13.5L3 21l4.6-1.2A9 9 0 1 0 12 3zm4.6 12.6c-.2.6-1.2 1.1-1.7 1.1-.4.1-1 .1-1.6-.1-3-1-4.9-4-5-4.2-.2-.2-1.2-1.6-1.2-3s.8-2.1 1-2.4c.3-.3.6-.3.8-.3h.6c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .5l-.4.6-.4.4c-.1.1-.2.3-.1.5.2.3.8 1.3 1.7 2.1 1.1 1 2.1 1.3 2.4 1.4.3.2.5.1.6 0l.8-1c.2-.2.4-.2.6-.1l1.9.9c.3.1.4.2.5.3.1.2.1.7-.1 1.3z"/></svg>'
 };
+// «Нам доверяют…» + топ-3 покупателей месяца
+const MEDAL = ["🥇", "🥈", "🥉"];
+const topHTML = () => { const t = S.top; if (!t) return "";
+  const trust = t.countries.length ? `<div class="trust glass"><div class="fl">${t.countries.map((c) => `<i title="${esc(c.name)}">${c.flag}</i>`).join("")}</div><div><b>Нам доверяют покупатели</b><small>из ${t.countries.map((c) => c.name.replace(/стан$/, "стана").replace(/^Россия$/, "России")).join(", ").replace(/, ([^,]*)$/, " и $1")}</small></div></div>` : "";
+  const top = t.top.length ? `<div class="top3 glass"><div class="th">🏆 Топ покупателей ${esc(t.month)}</div>${t.top.map((r, k) => `<div class="tr"><span class="md">${MEDAL[k]}</span><span class="fg">${r.flag}</span><b>${esc(r.name)}</b><span class="ct">${r.count} ${plural(r.count, "заказ", "заказа", "заказов")}</span></div>`).join("")}</div>` : "";
+  return trust + top; };
 const plural = (n, a, b, c) => (n % 10 === 1 && n % 100 !== 11 ? a : [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100) ? b : c);
 const money = (n) => Math.round(n || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -285,6 +302,7 @@ const VIEWS = {
       ${saleBanner()}
       <h2>Разделы</h2>
       <div class="sections">${d.sections.map((s) => `<button class="sec sec-${s.key}" data-sec="${s.key}"><div class="ph" style="background-image:url('img/sec-${s.key}.jpg')"></div><span>${s.title}</span><small>${s.count ? s.count + " " + plural(s.count, "товар", "товара", "товаров") + " →" : "скоро"}</small></button>`).join("")}</div>
+      <div id="topbox">${topHTML()}</div>
       ${news.length ? `<h2>Новинки <button data-tab="cat">Все →</button></h2><div class="hrow">${news.map(card).join("")}</div>` : emptyCatalog()}`;
   },
   sale() {
@@ -381,6 +399,7 @@ const VIEWS = {
         <div><b style="font-size:18px">${esc(u ? [u.first_name, u.last_name].filter(Boolean).join(" ") : "Покупатель")}</b><div class="muted" style="font-size:14px;margin-top:3px">Оптовый покупатель Medellin</div></div></div>
       <div class="lbl">Мои заказы</div>
       <div class="links glass" id="myorders" style="margin-bottom:14px"><div class="muted" style="padding:14px 0;font-size:14px">${tg && tg.initData ? "Загружаем…" : "Откройте каталог через Telegram, чтобы видеть заказы"}</div></div>
+      ${tg && tg.initData ? `<div class="lbl">Топ покупателей</div><div class="links glass"><button class="switch ${S.topShow === false ? "" : "on"}" id="topme">Показывать моё имя в топе покупателей месяца<i></i></button></div>` : ""}
       <div class="lbl">Страна и валюта</div>
       <div class="links glass"><button data-go-country>${ctry() ? `${ctry().flag} ${esc(ctry().name)} · ${esc(ctry().sym)}` : "Выбрать страну"} <span>Сменить →</span></button></div>
       <div class="lbl">Как мы работаем</div>
@@ -492,6 +511,13 @@ function bind(cur) {
   const cc = $("#clearcart");
   if (cc) cc.onclick = () => { const go2 = (ok) => { if (!ok) return; S.cart = []; saveCart(); haptic("ok"); render(); }; if (tg && tg.showConfirm) tg.showConfirm("Очистить корзину?", go2); else go2(confirm("Очистить корзину?")); };
   if ($("#myorders") && tg && tg.initData) loadMyOrders();
+  const tm = $("#topme");
+  if (tm) {
+    if (S.topShow === undefined) fetch("/api/top/me", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ initData: tg.initData }) }).then((r) => r.json()).then((d) => { S.topShow = d.show; tm.classList.toggle("on", d.show); }).catch(() => {});
+    tm.onclick = () => { haptic(); S.topShow = !tm.classList.contains("on"); tm.classList.toggle("on", S.topShow);
+      fetch("/api/top/me", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ initData: tg.initData, show: S.topShow }) }).catch(() => {});
+      toast(S.topShow ? "Ваше имя будет в топе" : "Вы скрыты из топа"); };
+  }
   app.querySelectorAll("[data-go-country]").forEach((b) => (b.onclick = () => { haptic(); go("country"); }));
   const q = $("#q");
   if (q) {
@@ -634,6 +660,7 @@ async function load() {
   try {
     const r = await fetch("/api/catalog", { cache: "no-store" });
     S.data = await r.json();
+    fetch("/api/top", { cache: "no-store" }).then((r) => r.json()).then((t) => { S.top = t; const b = $("#topbox"); if (b) b.innerHTML = topHTML(); }).catch(() => {});
     saveCart();
     if (!S.stack.length) S.stack = [{ name: S.country ? "home" : "country", params: {} }];
     // ?p=<id> — открыть товар по ссылке
