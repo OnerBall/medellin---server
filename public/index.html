@@ -302,6 +302,7 @@ const VIEWS = {
   product({ id, size }) {
     const p = byId(id); if (!p) return `<div class="empty"><b>Товар не найден</b>Возможно, его уже убрали из каталога</div>`;
     const qty = S.pqty || 1;
+    const inc = inCart(p, size), n = inc ? inc.qty : 0;
     const info = [["Раздел", `${(sec(p.section) || {}).title} · ${catTitle(p.category)}`], p.country && ["Производство", p.country], ["В упаковке", `${p.pack} ${plural(p.pack, ...p.unit.forms)}`], ["Доставка", "Казахстан и СНГ"]].filter(Boolean);
     return `<div class="gallery"><div class="track" id="track">${p.media.map((m) => m.type === "video" ? `<video src="${m.src}" ${m.poster ? `poster="${m.poster}"` : ""} playsinline controls preload="metadata"></video>` : `<div style="background-image:url('${m.src}')"></div>`).join("")}</div>
       <div class="nav"><button class="icon-btn" data-back aria-label="Назад">${I.back}</button><button class="icon-btn" data-share aria-label="Поделиться">${I.share}</button></div>
@@ -313,8 +314,9 @@ const VIEWS = {
       ${p.colors.length ? `<div class="lbl">Цвета</div><div class="colors">${p.colors.map((c) => `<i style="background:${esc(c.hex)}" title="${esc(c.name)}"></i>`).join("")}</div>` : ""}
       <div class="info glass">${info.map(([a, b]) => `<div><span>${a}</span><span>${esc(b)}</span></div>`).join("")}</div>
       ${p.description ? `<div class="lbl">Описание</div><div class="desc">${esc(p.description)}</div>` : ""}
-      <div class="bar">${p.inStock ? `<div class="stepper"><button data-pq="-1" aria-label="Меньше">−</button><b>${qty}</b><button data-pq="1" aria-label="Больше">+</button></div>
-        <button class="btn" data-buy="${p.id}">${I.cart}В корзину · ${money(p.price * p.pack * qty)} ₸</button>`
+      <div class="bar">${p.inStock ? (inc ? `<div class="stepper"><button data-incq="-1" aria-label="Убрать одну">−</button><b>${n}</b><button data-incq="1" aria-label="Добавить ещё">+</button></div>
+        <button class="btn" data-tab="cart">${I.check}В корзине · ${money(p.price * p.pack * n)} ₸</button>` : `<div class="stepper"><button data-pq="-1" aria-label="Меньше">−</button><b>${qty}</b><button data-pq="1" aria-label="Больше">+</button></div>
+        <button class="btn" data-buy="${p.id}">${I.cart}В корзину · ${money(p.price * p.pack * qty)} ₸</button>`)
         : `<button class="btn ghost" data-wa="Здравствуйте! Когда будет в наличии: ${esc(p.name)}?">${I.wa}Спросить о наличии</button>`}</div>`;
   },
   cart() {
@@ -382,6 +384,12 @@ setInterval(flushEv, 5000);
 document.addEventListener("visibilitychange", () => document.visibilityState === "hidden" && flushEv());
 let searchT = null;
 
+// позиция этого товара (с выбранным размером) в корзине
+function inCart(p, size) {
+  const z = size || (p.sizes.length === 1 ? p.sizes[0] : "");
+  if (p.sizes.length > 1 && !z) return null;
+  return S.cart.find((i) => i.id === p.id && i.size === z) || null;
+}
 function addToCart(id, qty = 1, size = "") {
   const p = byId(id); if (!p) return;
   if (!size && p.sizes.length === 1) size = p.sizes[0];
@@ -475,7 +483,7 @@ function bind(cur) {
     const p = byId(cur.params.id); if (!p) return;
     const tr = $("#track");
     if (tr) tr.onscroll = () => { const i = Math.round(tr.scrollLeft / tr.clientWidth); app.querySelectorAll(".dots i").forEach((d, k) => d.classList.toggle("on", k === i)); tr.querySelectorAll("video").forEach((v) => { if (tr.children[i] !== v) v.pause(); }); };
-    app.querySelectorAll("[data-psize]").forEach((b) => (b.onclick = () => { haptic(); go("product", { ...cur.params, size: b.dataset.psize }, true); }));
+    app.querySelectorAll("[data-psize]").forEach((b) => (b.onclick = () => { haptic(); go("product", { ...cur.params, size: cur.params.size === b.dataset.psize ? "" : b.dataset.psize }, true); }));
     app.querySelectorAll("[data-pq]").forEach((b) => (b.onclick = () => { haptic(); S.pqty = Math.max(1, (S.pqty || 1) + +b.dataset.pq); go("product", cur.params, true); }));
     const share = app.querySelector("[data-share]");
     if (share) share.onclick = () => {
@@ -487,6 +495,12 @@ function bind(cur) {
       if (tg && tg.showPopup) tg.showPopup({ title: "Поделиться товаром", message: "Куда отправить?", buttons: [{ id: "wa", type: "default", text: "WhatsApp" }, { id: "tg", type: "default", text: "Telegram" }, { type: "cancel" }] }, (b) => { if (b === "wa") viaWa(); else if (b === "tg") viaTg(); });
       else viaWa();
     };
+    app.querySelectorAll("[data-incq]").forEach((b) => (b.onclick = () => {
+      const it = inCart(p, cur.params.size || ""); if (!it) return;
+      it.qty += +b.dataset.incq;
+      if (it.qty <= 0) { S.cart.splice(S.cart.indexOf(it), 1); haptic("ok"); toast("Убрано из корзины"); } else haptic();
+      saveCart(); S.pqty = 1; go("product", cur.params, true);
+    }));
     const buy = app.querySelector("[data-buy]");
     if (buy) buy.onclick = () => {
       if (p.sizes.length > 1 && !cur.params.size) { haptic("err"); return toast("Выберите размер"); }
