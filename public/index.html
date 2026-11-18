@@ -186,6 +186,13 @@ textarea.field{height:80px;padding:14px 16px;resize:none}
 .pcolor.on{box-shadow:0 0 0 2.5px var(--gold),0 6px 16px rgba(0,0,0,.25);transform:translateY(-2px)}
 .pcolor b{position:absolute;right:4px;bottom:4px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:rgba(0,0,0,.6);color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center}
 .citem .img{position:relative}
+.crows{display:flex;flex-direction:column;gap:8px;margin-bottom:6px}
+.crow{display:flex;align-items:center;gap:12px;padding:8px 8px 8px 8px;border-radius:18px;background:rgba(128,110,95,.07);box-shadow:inset 0 0 0 1px var(--line);transition:box-shadow .2s}
+.crow.on{box-shadow:inset 0 0 0 1.5px var(--gold)}
+.crow .cth{width:46px;height:58px;border-radius:11px;background:center/cover;flex:none}
+.crow span{flex:1;font-size:15px;font-weight:500}
+.stepper.sm button{width:38px;height:40px;font-size:20px}.stepper.sm b{min-width:22px;font-size:16px}
+.chint{font-size:13px;color:var(--gold);margin:-4px 0 8px}
 </style></head><body>
 <div class="wrap" id="app"><div class="skel"></div></div>
 <div id="nav"></div>
@@ -321,12 +328,14 @@ const VIEWS = {
       <div class="pname">${esc(p.name)}</div>
       <div class="prices"><b>${money(p.price)} ₸</b>${p.oldPrice ? `<s>${money(p.oldPrice)} ₸</s><span class="disc">−${p.sale}%</span>` : ""}<span>${p.unit.per}${alt(p.price) ? " · " + alt(p.price) : ""}</span></div>
       <div class="pack glass"><div><small>Цена за упаковку · ${p.pack} ${plural(p.pack, ...p.unit.forms)}</small><b>${money(p.price * p.pack)} ₸</b>${alt(p.price * p.pack) ? `<div class="alt">${alt(p.price * p.pack)}</div>` : ""}</div><span style="color:var(--rose);font-size:13px;font-weight:600">${p.inStock ? "Опт" : "Нет в наличии"}</span></div>
-      ${multi ? `<div class="lbl">Расцветка${col >= 0 ? ` — №${col + 1}` : " — выберите"}</div><div class="pcolors">${p.photos.map((ph, k) => `<button class="pcolor ${col === k ? "on" : ""}" data-pcolor="${k}" style="background-image:url('${ph}')" aria-label="Расцветка ${k + 1}"><b>${k + 1}</b></button>`).join("")}</div>` : ""}
       ${p.sizes.length ? `<div class="lbl">Размер${p.sizes.length > 1 ? " — выберите" : ""}</div><div class="sizes">${p.sizes.map((z) => `<button class="size ${size === z ? "on" : ""}" data-psize="${esc(z)}">${esc(z)}</button>`).join("")}</div>` : ""}
+      ${multi ? `<div class="lbl">Расцветки — сколько упаковок</div>${p.sizes.length > 1 && !size ? `<div class="chint">Сначала выберите размер ↑</div>` : ""}<div class="crows">${p.photos.map((ph, k) => { const q = colorQty(p, size, k); return `<div class="crow ${q ? "on" : ""}"><button class="cth" data-cshow="${k}" style="background-image:url('${ph}')" aria-label="Показать расцветку ${k + 1}"></button><span>Расцветка №${k + 1}</span><div class="stepper sm"><button data-cstep="${k}:-1" aria-label="Меньше" ${q ? "" : 'style="opacity:.3"'}>−</button><b>${q}</b><button data-cstep="${k}:1" aria-label="Больше">+</button></div></div>`; }).join("")}</div>` : ""}
       ${p.colors.length ? `<div class="lbl">Цвета</div><div class="colors">${p.colors.map((c) => `<i style="background:${esc(c.hex)}" title="${esc(c.name)}"></i>`).join("")}</div>` : ""}
       <div class="info glass">${info.map(([a, b]) => `<div><span>${a}</span><span>${esc(b)}</span></div>`).join("")}</div>
       ${p.description ? `<div class="lbl">Описание</div><div class="desc">${esc(p.description)}</div>` : ""}
-      <div class="bar">${p.inStock ? (inc ? `<div class="stepper"><button data-incq="-1" aria-label="Убрать одну">−</button><b>${n}</b><button data-incq="1" aria-label="Добавить ещё">+</button></div>
+      <div class="bar">${p.inStock && multi ? (() => { const all = S.cart.filter((i) => i.id === p.id), n2 = all.reduce((a, i) => a + i.qty, 0);
+          return n2 ? `<button class="btn" data-tab="cart">${I.check}В корзине ${n2} уп. · ${money(p.price * p.pack * n2)} ₸ →</button>` : `<button class="btn" style="opacity:.45" data-cneed>Укажите количество расцветок</button>`; })()
+        : p.inStock ? (inc ? `<div class="stepper"><button data-incq="-1" aria-label="Убрать одну">−</button><b>${n}</b><button data-incq="1" aria-label="Добавить ещё">+</button></div>
         <button class="btn" data-tab="cart">${I.check}В корзине · ${money(p.price * p.pack * n)} ₸</button>` : `<div class="stepper"><button data-pq="-1" aria-label="Меньше" ${qty <= 1 ? 'style="opacity:.3"' : ""}>−</button><b>${qty}</b><button data-pq="1" aria-label="Больше">+</button></div>
         <button class="btn" data-buy="${p.id}">${I.cart}В корзину · ${money(p.price * p.pack * qty)} ₸</button>`)
         : `<button class="btn ghost" data-wa="Здравствуйте! Когда будет в наличии: ${esc(p.name)}?">${I.wa}Спросить о наличии</button>`}</div>`;
@@ -403,6 +412,10 @@ function inCart(p, size, color = -1) {
   if (p.photos.length > 1 && color < 0) return null;
   return S.cart.find((i) => i.id === p.id && i.size === z && cc(i) === color) || null;
 }
+// сколько упаковок расцветки k (выбранного размера) уже в корзине
+const effSize = (p, size) => size || (p.sizes.length === 1 ? p.sizes[0] : "");
+colorQty.of = (i) => (Number.isInteger(i.c) ? i.c : -1);
+function colorQty(p, size, k) { const z = effSize(p, size); const it = S.cart.find((i) => i.id === p.id && i.size === z && cc(i) === k); return it ? it.qty : 0; }
 function addToCart(id, qty = 1, size = "", color = -1) {
   const p = byId(id); if (!p) return;
   if (!size && p.sizes.length === 1) size = p.sizes[0];
@@ -508,6 +521,20 @@ function bind(cur) {
       if (tg && tg.showPopup) tg.showPopup({ title: "Поделиться товаром", message: "Куда отправить?", buttons: [{ id: "wa", type: "default", text: "WhatsApp" }, { id: "tg", type: "default", text: "Telegram" }, { type: "cancel" }] }, (b) => { if (b === "wa") viaWa(); else if (b === "tg") viaTg(); });
       else viaWa();
     };
+    app.querySelectorAll("[data-cshow]").forEach((b) => (b.onclick = () => {
+      const k = +b.dataset.cshow, tr = $("#track"), mi = p.media.findIndex((m) => m.src === p.photos[k]); haptic();
+      if (tr) { tr.scrollTo({ left: tr.clientWidth * (mi >= 0 ? mi : k), behavior: "smooth" }); window.scrollTo({ top: 0, behavior: "smooth" }); }
+    }));
+    app.querySelectorAll("[data-cstep]").forEach((b) => (b.onclick = () => {
+      const [k, d] = b.dataset.cstep.split(":").map(Number), z = effSize(p, cur.params.size);
+      if (p.sizes.length > 1 && !z) { haptic("err"); return toast("Сначала выберите размер"); }
+      const it = S.cart.find((i) => i.id === p.id && i.size === z && colorQty.of(i) === k);
+      if (d > 0) { if (it) it.qty++; else { S.cart.push({ id: p.id, size: z, c: k, qty: 1 }); ev("cart", p.id); } haptic(); }
+      else if (it) { it.qty--; if (it.qty <= 0) S.cart.splice(S.cart.indexOf(it), 1); haptic(); } else return;
+      saveCart(); const y = window.scrollY, tx = ($("#track") || {}).scrollLeft || 0;
+      go("product", { ...cur.params, size: z }, true); window.scrollTo(0, y); const t2 = $("#track"); if (t2) t2.scrollLeft = tx;
+    }));
+    const need = app.querySelector("[data-cneed]"); if (need) need.onclick = () => { haptic("err"); toast(p.sizes.length > 1 && !cur.params.size ? "Выберите размер и количество" : "Нажмите + у нужных расцветок"); const c = app.querySelector(".crows"); if (c) c.scrollIntoView({ behavior: "smooth", block: "center" }); };
     app.querySelectorAll("[data-pcolor]").forEach((b) => (b.onclick = () => {
       haptic(); const k = +b.dataset.pcolor, y = window.scrollY;
       go("product", { ...cur.params, color: cur.params.color === k ? -1 : k }, true); window.scrollTo(0, y);
