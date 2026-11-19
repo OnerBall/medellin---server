@@ -6,7 +6,9 @@ const Database = require("better-sqlite3");
 
 // DB_PATH → иначе на диск Railway (Volume) → иначе ./data рядом с кодом (локально)
 const VOL = (process.env.RAILWAY_VOLUME_MOUNT_PATH || "").trim();
-const DB_PATH = (process.env.DB_PATH || "").trim() || (VOL ? path.join(VOL, "medellin.db") : path.join(__dirname, "data", "medellin.db"));
+let DB_PATH = (process.env.DB_PATH || "").trim() || (VOL ? path.join(VOL, "medellin.db") : path.join(__dirname, "data", "medellin.db"));
+// диск Railway подключён, а DB_PATH указывает мимо него — база стиралась бы при каждом обновлении. Кладём на диск.
+if (VOL && !path.resolve(DB_PATH).startsWith(path.resolve(VOL) + path.sep)) DB_PATH = path.join(VOL, path.basename(DB_PATH) || "medellin.db");
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 
 const db = new Database(DB_PATH);

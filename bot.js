@@ -51,14 +51,19 @@ function cardText(r) {
     products.onSale(r) ? `🔥 Распродажа: ${fmt(r.sale_price)} ₸ / ${u.label} (−${Math.round((1 - r.sale_price / r.price_per_unit) * 100)}%)` : null,
     `📂 ${label(r.category)}`,
     sizes.length ? `📏 ${sizes.join(" ")}` : null,
+    `🎨 ${COLOR_LABEL[products.colorMode(r)]}` + (r.country ? ` · 🌍 ${r.country}` : ""),
     `🖼 фото: ${np}` + (nv ? ` · 🎬 видео: ${nv}` : "")
   ].filter((x) => x !== null).join("\n");
 }
 
+const COLOR_LABEL = { pick: "клиент выбирает расцветку по фото", skip1: "выбор расцветки, 1-е фото общее", mix: "без выбора цвета (микс / один цвет)", names: "выбор цвета по названиям" };
+const COLOR_NEXT = { pick: "skip1", skip1: "mix", mix: "pick", names: "pick" };
+const COUNTRIES_CYCLE = ["", "Китай", "Турция", "Узбекистан", "Казахстан", "Кыргызстан"];
 function cardKb(r) {
   return Markup.inlineKeyboard([
     [Markup.button.callback("📂 Категория", `cat:${r.id}`), Markup.button.callback("💰 Цена", `price:${r.id}`), Markup.button.callback("📦 Упаковка", `pack:${r.id}`)],
     [Markup.button.callback(`🏷 Цена ${unitOf(r.unit).per}`, `unit:${r.id}`)],
+    [Markup.button.callback("🎨 Расцветки", `colors:${r.id}`), Markup.button.callback(`🌍 ${r.country || "Страна"}`, `country:${r.id}`)],
     [products.onSale(r) ? Markup.button.callback("✖️ Убрать из распродажи", `unsale:${r.id}`) : Markup.button.callback("🔥 В распродажу", `sale:${r.id}`)],
     [Markup.button.callback(r.hidden === 2 ? "👁 Показать" : "🙈 Скрыть", `hide:${r.id}`),
       Markup.button.callback(r.in_stock ? "⛔ Нет в наличии" : "✅ Есть в наличии", `stock:${r.id}`)],
@@ -153,7 +158,18 @@ async function finish(post, notifyChat, isEdit) {
     return;
   }
   if (!res.created && !res.captionChanged && !res.mediaChanged && !notifyChat) return; // повтор без изменений — молчим
-  const prefix = res.created ? "🆕 Новый товар из канала" : isEdit || res.captionChanged || res.mediaChanged ? "✏️ Товар обновлён" : "♻️ Этот товар уже в каталоге";
+  if (res.skipped) {
+    if (res.skipped === "nocaption" && !notifyChat) return; // в канале просто пропускаем
+    const msg = {
+      nocaption: "🎬 Фото/видео без описания — не добавляю как новый товар.\n\nЧтобы прикрепить видеообзор к товару, подпишите его так:\n#обзор 010\n(010 — код или номер из названия товара)",
+      nocode: "🎬 Вижу #обзор, но нет кода товара. Подпишите так: #обзор 010",
+      pending: `🎬 Товара с «${res.code}» в каталоге пока нет — видео сохранил.\nКак только перешлёте или опубликуете пост с этим товаром, видеообзор прикрепится к нему сам ✅`,
+    }[res.skipped];
+    await bot.telegram.sendMessage(target, msg).catch(() => {});
+    return;
+  }
+  if (!res.created && !res.captionChanged && !res.mediaChanged && !notifyChat) return; // повтор без изменений — молчим
+  const prefix = res.review ? "🎬 Видеообзор добавлен к товару" : res.created ? "🆕 Новый товар из канала" : isEdit || res.captionChanged || res.mediaChanged ? "✏️ Товар обновлён" : "♻️ Этот товар уже в каталоге";
   try { await sendCard(target, res.product, prefix); } catch (e) { console.warn("[bot] card:", e.message); }
 }
 
@@ -207,7 +223,7 @@ const altText = (o) => { const c = rates.BY_CODE[o.buyer_country]; return o.show
 function editKb(o) {
   const items = JSON.parse(o.items);
   const rows = items.map((i, k) => [
-    Markup.button.callback(`➖ ${i.name.slice(0, 22)}${i.size ? " " + i.size : ""}${i.c >= 0 ? " №" + (i.c + 1) : ""} · ${i.qty} уп.`, `oit:${o.id}:${k}:-1`),
+    Markup.button.callback(`➖ ${i.name.slice(0, 22)}${i.size ? " " + i.size : ""}${i.c >= 0 ? " " + (i.cl ? i.cl.replace(/^Расцветка /, "") : "№" + (i.c + 1)) : ""} · ${i.qty} уп.`, `oit:${o.id}:${k}:-1`),
     Markup.button.callback("➕", `oit:${o.id}:${k}:1`)
   ]);
   rows.push([Markup.button.callback("✅ Готово — сообщить клиенту", `oek:${o.id}`)]);
@@ -222,7 +238,7 @@ function invoiceText(o) {
 }
 
 // «(M, расцветка №3)» — размер и выбранная расцветка позиции заказа
-const itemTag = (i) => { const t = [i.size, Number.isInteger(i.c) && i.c >= 0 ? `расцветка №${i.c + 1}` : ""].filter(Boolean).join(", "); return t ? ` (${t})` : ""; };
+const itemTag = (i) => { const t = [i.size, Number.isInteger(i.c) && i.c >= 0 ? (i.cl ? i.cl.replace(/^Расцветка/, "расцветка") : `расцветка №${i.c + 1}`) : ""].filter(Boolean).join(", "); return t ? ` (${t})` : ""; };
 const changed = new Set();
 const waLink = (phone, text) => `https://wa.me/${String(phone || "").replace(/\D/g, "")}?text=${encodeURIComponent(text)}`;
 
@@ -232,7 +248,7 @@ function orderAlbum(o) {
   const media = [];
   items.forEach((i, k) => {
     const r = products.get(i.id);
-    const phs = r ? JSON.parse(r.photos || "[]") : []; const ph = phs[i.c >= 0 && i.c < phs.length ? i.c : 0];
+    const phs = r ? JSON.parse(r.photos || "[]") : []; const pi = Number.isInteger(i.cp) ? i.cp : i.c; const ph = phs[pi >= 0 && pi < phs.length ? pi : 0];
     if (ph && media.length < 10)
       media.push({ type: "photo", media: ph, caption: `${k + 1}. ${i.name}${itemTag(i)} × ${i.qty} уп. — ${fmt(i.price * i.pack * i.qty)} ₸` });
   });
@@ -621,6 +637,16 @@ if (bot) {
         pending.set(ctx.chat.id, { id, field: act === "price" ? "price_per_unit" : "pack_qty", msg });
         await ctx.answerCbQuery();
         return ctx.reply(act === "price" ? "Напиши цену за 1 шт числом, например 650" : "Сколько штук в упаковке? Напиши число, например 12");
+      case "colors": {
+        const next = COLOR_NEXT[products.colorMode(r)];
+        const u = products.update(id, { color_mode: next });
+        await editCard(msg, u); return ctx.answerCbQuery("🎨 " + COLOR_LABEL[next]);
+      }
+      case "country": {
+        const next = COUNTRIES_CYCLE[(COUNTRIES_CYCLE.indexOf(r.country || "") + 1) % COUNTRIES_CYCLE.length];
+        const u = products.update(id, { country: next });
+        await editCard(msg, u); return ctx.answerCbQuery(next ? "🌍 " + next : "Страна не показывается");
+      }
       case "unit": {
         const next = UNIT_ORDER[(UNIT_ORDER.indexOf(r.unit || "pcs") + 1) % UNIT_ORDER.length];
         const u = products.update(id, { unit: next });

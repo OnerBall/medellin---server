@@ -33,9 +33,20 @@ function parseCaption(caption) {
   let name = "";
   for (const l of body) {
     const s = stripDecor(l.replace(/#[^\s]+/g, "")).replace(/[:—-]+$/, "").trim();
-    if (s && !/^(производство|цена|размер|в упаковке|отправля|для заказа|доставка)/i.test(s)) { name = s; break; }
+    if (s && !/^(производство|цена|размер|в упаковке|отправ|для заказа|доставка|код|артикул|от\s)/i.test(s) && !/^(скидк[а-яё]*|акци[а-яё]*|распродаж[а-яё]*|sale|новинк[а-яё]*|new|хит[а-яё]*|топ продаж)[!.\s]*$/i.test(s)) { name = s; break; }
   }
-  name = name.slice(0, 80);
+  // код/артикул: «Код: j046» — добавляем к названию, чтобы одинаковые «Женская пижама» различались
+  const codeLine = body.find((l) => /^(код|артикул|арт\.?)\s*[:№#]?\s*\S+/i.test(stripDecor(l)));
+  const code = codeLine ? stripDecor(codeLine).replace(/^(код|артикул|арт\.?)\s*[:№#]?\s*/i, "").split(/\s/)[0] : "";
+  // цена без «тг» прямо в названии: «…уверенность ❤️‍🔥 33999» → цена 33 999, из названия убираем
+  // (берём только если в посте нет цены с «тг», иначе это артикул: «Женские трусы 5106»)
+  const tail = name.match(/\s(\d[\d\s]{2,8}\d)\s*$/);
+  const bare = tail && num(tail[1]) >= 300 && !/(\d)\s*(тг|₸|тенге|tg|kzt)/i.test(raw) ? num(tail[1]) : null;
+  if (bare) name = name.slice(0, tail.index).trim();
+  // длинное описательное название — до первой запятой
+  if (name.length > 45 && name.includes(",")) name = name.split(",")[0].trim();
+  if (code && !name.toLowerCase().includes(code.toLowerCase())) name = `${name} ${code}`;
+  if (name.length > 80) name = name.slice(0, 80).replace(/\s+\S*$/, "");
 
   // цена: сначала строка со словом «цена», потом любое число с тг/₸
   const priceRe = /(\d[\d\s., ]*\d|\d)\s*(?:тг|₸|тенге|tg|kzt)/i;
@@ -43,6 +54,16 @@ function parseCaption(caption) {
   const priceLine = body.find((l) => /цена/i.test(l) && priceRe.test(l)) || body.find((l) => priceRe.test(l));
   if (priceLine) price = num(priceLine.match(priceRe)[1]);
   if (price !== null && (isNaN(price) || price <= 0 || price > 10_000_000)) price = null;
+  if (price === null && bare) price = bare;
+  let salePrice = null;
+  const pr = (l) => { const m = l && l.match(priceRe); return m ? num(m[1]) : null; };
+  const newLine = body.find((l) => /(со скидкой|по скидке|скидочн|сейчас|новая цена|цена по акции|акционн)/i.test(l) && priceRe.test(l));
+  const oldLine = body.find((l) => /(был[аио]?|старая цена|вместо|обычная цена)/i.test(l) && priceRe.test(l));
+  if (newLine) {
+    const n = pr(newLine), o = oldLine ? pr(oldLine) : null;
+    if (n > 0 && o > n) { price = o; salePrice = n; }
+    else if (n > 0 && price > n) salePrice = n;
+  }
 
   // упаковка
   let pack = null;
@@ -58,6 +79,13 @@ function parseCaption(caption) {
     const after = sizeLine.split(/размер[а-я]*\s*[:\-–]?/i)[1] || "";
     sizes = stripDecor(after).split(/[\s,;|]+|(?<=[A-Za-z])\/(?=[A-Za-z])/).map((x) => x.trim().replace(/\.$/, "")).filter((x) => SIZE_RE.test(x)).map((x) => x.toUpperCase());
     sizes = [...new Set(sizes)].slice(0, 12);
+    // «стандарт (44-52)» — один размерный ряд
+    if (sizes.length === 1 && /стандарт/i.test(after) && /^\d{2,3}[-–]\d{2,3}$/.test(sizes[0])) sizes = ["Стандарт " + sizes[0].replace("-", "–")];
+    if (!sizes.length) {
+      const r = after.match(/(\d{2,3})\s*[-–]\s*(\d{2,3})/);
+      if (r) sizes = [(/стандарт/i.test(after) ? "Стандарт " : "") + r[1] + "–" + r[2]];
+      else if (/стандарт|универсал|free/i.test(after)) sizes = ["Стандарт"];
+    }
   }
 
   // цвета — только если явно перечислены
@@ -69,7 +97,7 @@ function parseCaption(caption) {
   }
 
   // страна производства
-  let country = "";
+  let country = ""; // страну показываем, только если она указана в посте
   const countryLine = body.find((l) => /производств/i.test(l));
   if (countryLine) {
     const flag = Object.keys(FLAGS).find((f) => countryLine.includes(f));
@@ -87,7 +115,13 @@ function parseCaption(caption) {
 
   const category = detect(hashtags, name + " " + raw);
   const unit = detectUnit(priceLine, name);
-  return { name, price, pack, packGuessed, sizes, colors, country, description, hashtags, category, unit };
+  // цена за коробку: «упаковка» в каталоге = минимальный заказ в коробках («Минимум от 2-х коробок»), иначе 1 коробка
+  if (unit === "box") {
+    const minLine = body.find((l) => /(минимум|мин\.?|от)\s*(от\s*)?\d+\s*(-?х|-?ти)?\s*короб/i.test(l));
+    const mb = minLine ? parseInt(minLine.match(/(\d+)\s*(-?х|-?ти)?\s*короб/i)[1], 10) : 1;
+    return { name, price, salePrice, pack: mb > 0 && mb < 100 ? mb : 1, packGuessed: false, sizes, colors, country, description, hashtags, category, unit };
+  }
+  return { name, price, salePrice, pack, packGuessed, sizes, colors, country, description, hashtags, category, unit };
 }
 
 module.exports = { parseCaption, PACK_DEFAULT };
