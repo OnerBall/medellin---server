@@ -16,6 +16,28 @@ const SIZE_MIX_RE = /разн[а-яё]*\s+размер|размер[а-яё]*\s*
 const sizeMix = (r) => (r.size_mode ? r.size_mode === "mix" : SIZE_MIX_RE.test(r.caption || ""));
 try { db.exec("ALTER TABLE products ADD COLUMN sold_out TEXT"); } catch (e) { /* уже есть */ }
 const soldOut = (r) => jarr(r.sold_out) || [];
+try { db.exec("ALTER TABLE products ADD COLUMN removed_media TEXT"); } catch (e) { /* уже есть */ }
+// удалить фото товара по номерам (номера как в каталоге: 0 — первое фото)
+function removePhotos(id, idxs) {
+  const r = get(id); if (!r) return null;
+  const photos = JSON.parse(r.photos || "[]");
+  const del = new Set(idxs.filter((i) => Number.isInteger(i) && i >= 0 && i < photos.length));
+  if (!del.size || del.size >= photos.length) return r; // хотя бы одно фото должно остаться
+  const delIds = new Set([...del].map((i) => photos[i]));
+  const media = mediaOf(r), removed = jarr(r.removed_media) || [];
+  let media2 = null, photos2;
+  if (media) {
+    media2 = media.filter((m) => { const gone = (m.t === "p" && delIds.has(m.id)); if (gone && m.uid) removed.push(m.uid); return !gone; });
+    photos2 = derivePhotos(media2);
+  } else photos2 = photos.filter((_, i) => !del.has(i));
+  // номера фото в расцветках сдвигаются
+  const remap = (i) => photos2.indexOf(photos[i]);
+  const cp = jarr(r.color_photos);
+  const cp2 = cp ? cp.filter((i) => !del.has(i)).map(remap).filter((i) => i >= 0) : null;
+  db.prepare("UPDATE products SET photos=?, media=?, color_photos=?, removed_media=?, updated_at=? WHERE id=?")
+    .run(JSON.stringify(photos2), media2 ? JSON.stringify(media2) : r.media, cp2 ? JSON.stringify(cp2) : r.color_photos, JSON.stringify(removed.slice(-200)), Date.now(), id);
+  return get(id);
+}
 const nc = (s) => String(s || "").toLowerCase().replace(/ё/g, "е").trim();
 // цена за штуку для конкретного размера и цвета (самое точное правило выигрывает)
 function varPrice(r, size, colorLabel) {
@@ -109,7 +131,7 @@ function derivePhotos(media) {
 function mergeMedia(row, incoming) {
   const old = row ? mediaOf(row) : null;
   if (!old) return incoming.length ? incoming.slice(0, MAX_MEDIA) : null; // старый товар без media — берём новый набор целиком
-  const uids = new Set(old.map((m) => m.uid));
+  const uids = new Set([...old.map((m) => m.uid), ...(jarr(row.removed_media) || [])]);
   return [...old, ...incoming.filter((m) => !uids.has(m.uid))].slice(0, MAX_MEDIA);
 }
 
@@ -227,16 +249,17 @@ function remove(id) {
 // товар можно показывать покупателям?
 const isPublic = (r) => r.hidden === 0 && !!complete(r);
 
+const purl = (r, photos, i) => `/photo/${r.id}/${i}?f=${String(photos[i] || "").slice(-10).replace(/[^A-Za-z0-9_-]/g, "")}`;
 function mediaList(r) {
   const photos = JSON.parse(r.photos || "[]");
   const media = mediaOf(r);
-  if (!media) return photos.map((_, i) => ({ type: "photo", src: `/photo/${r.id}/${i}` }));
+  if (!media) return photos.map((_, i) => ({ type: "photo", src: purl(r, photos, i) }));
   const out = [];
   media.forEach((m, k) => {
-    if (m.t === "p") { const i = photos.indexOf(m.id); if (i >= 0) out.push({ type: "photo", src: `/photo/${r.id}/${i}` }); }
+    if (m.t === "p") { const i = photos.indexOf(m.id); if (i >= 0) out.push({ type: "photo", src: purl(r, photos, i) }); }
     else if (m.t === "v" && (!m.size || m.size <= VIDEO_MAX)) {
       const i = m.th ? photos.indexOf(m.th) : -1;
-      out.push({ type: "video", src: `/video/${r.id}/${k}`, poster: i >= 0 ? `/photo/${r.id}/${i}` : "" });
+      out.push({ type: "video", src: `/video/${r.id}/${k}`, poster: i >= 0 ? purl(r, photos, i) : "" });
     }
   });
   return out;
@@ -251,8 +274,8 @@ function toJSON(r) {
     id: r.id, name: r.name, section: c ? c.section : null, category: r.category, description: r.description || "",
     priceRules: (jarr(r.price_rules) || []).map((ru) => ({ c: ru.c, s: ru.s, p: onSale(r) ? Math.round(ru.p * r.sale_price / r.price_per_unit) : ru.p })), price: effPrice(r), oldPrice: onSale(r) ? r.price_per_unit : null, sale: onSale(r) ? Math.round((1 - r.sale_price / r.price_per_unit) * 100) : 0, pack: r.pack_qty, unit: { key: r.unit || "pcs", ...u }, sizes: sizeMix(r) ? [] : JSON.parse(r.sizes || "[]"), sizesInPack: sizeMix(r) ? JSON.parse(r.sizes || "[]") : [], soldOut: soldOut(r),
     colors: JSON.parse(r.colors || "[]"), country: r.country || "", inStock: !!r.in_stock,
-    isNew: Date.now() - r.created_at < NEW_DAYS * 86400e3, photos: photos.map((_, i) => `/photo/${r.id}/${i}`), media,
-    hasVideo: media.some((m) => m.type === "video"), nPhotos: media.filter((m) => m.type === "photo").length || photos.length, noColors: colorMode(r) === "mix", colorFrom: colorFrom(r), colorOpts: colorOpts(r).map((o) => ({ k: o.k, label: o.label, photo: o.photo === null ? null : photos[o.photo] || null })), createdAt: r.created_at
+    isNew: Date.now() - r.created_at < NEW_DAYS * 86400e3, photos: photos.map((_, i) => purl(r, photos, i)), media,
+    hasVideo: media.some((m) => m.type === "video"), nPhotos: media.filter((m) => m.type === "photo").length || photos.length, noColors: colorMode(r) === "mix", colorFrom: colorFrom(r), colorOpts: colorOpts(r).map((o) => ({ k: o.k, label: o.label, photo: o.photo === null || !photos[o.photo] ? null : purl(r, photos, o.photo) })), createdAt: r.created_at
   };
 }
 
@@ -262,4 +285,4 @@ function listPublic() {
 
 const packText = (r) => `${r.pack_qty} ${plural(r.pack_qty, unitOf(r.unit).forms)}`;
 
-module.exports = { soldOut, sizeMix, varPrice, colorOpts, colorMode, colorFrom, onSale, effPrice, importPost, update, remove, get, toJSON, listPublic, isPublic, mediaOf, packText, VIDEO_MAX };
+module.exports = { removePhotos, soldOut, sizeMix, varPrice, colorOpts, colorMode, colorFrom, onSale, effPrice, importPost, update, remove, get, toJSON, listPublic, isPublic, mediaOf, packText, VIDEO_MAX };

@@ -67,7 +67,8 @@ router.post("/api/admin/save", (req, res) => {
   if (["pick", "names", "mix"].includes(f.colorMode)) u.color_mode = f.colorMode;
   if (Array.isArray(f.colorPhotos)) u.color_photos = JSON.stringify(f.colorPhotos.map(Number).filter((n) => Number.isInteger(n) && n >= 0).slice(0, 40));
   if (Array.isArray(f.colorNames)) u.color_names = JSON.stringify(f.colorNames.map((s) => String(s).trim()).filter(Boolean).slice(0, 30).map((s) => s.slice(0, 30)));
-  const r2 = products.update(r.id, u);
+  let r2 = products.update(r.id, u);
+  if (Array.isArray(f.removePhotos) && f.removePhotos.length) r2 = products.removePhotos(r.id, f.removePhotos.map(Number));
   res.json({ ok: true, product: products.isPublic(r2) ? products.toJSON(r2) : null });
 });
 
