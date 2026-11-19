@@ -34,7 +34,7 @@ router.post("/api/admin/get", (req, res) => {
   if (!r) return res.status(404).json({ error: "not found" });
   const j = products.toJSON(r);
   res.json({
-    id: r.id, name: r.name, sizeMix: products.sizeMix(r), priceText: rulesText(jarr(r.price_rules)), sizes: (jarr(r.sizes) || []).join(" "), price: r.price_per_unit, pack: r.pack_qty, sale: r.sale_price || null, category: r.category || "",
+    id: r.id, name: r.name, soldOut: products.soldOut(r), sizeMix: products.sizeMix(r), priceText: rulesText(jarr(r.price_rules)), sizes: (jarr(r.sizes) || []).join(" "), price: r.price_per_unit, pack: r.pack_qty, sale: r.sale_price || null, category: r.category || "",
     country: r.country || "", inStock: !!r.in_stock, hidden: r.hidden === 2, unit: j.unit,
     colorMode: products.colorMode(r) === "skip1" ? "pick" : products.colorMode(r),
     colorPhotos: jarr(r.color_photos) || products.colorOpts(r).filter((o) => o.photo !== null).map((o) => o.k),
@@ -60,6 +60,7 @@ router.post("/api/admin/save", (req, res) => {
   }
   if (typeof f.sizes === "string") u.sizes = JSON.stringify([...new Set(f.sizes.split(/[\s,;]+/).map((s) => s.trim().toUpperCase()).filter(Boolean))].slice(0, 15));
   if (typeof f.country === "string") u.country = f.country.trim().slice(0, 40);
+  if (Array.isArray(f.soldOut)) u.sold_out = JSON.stringify(f.soldOut.map(String).slice(0, 30));
   if (typeof f.sizeMix === "boolean") u.size_mode = f.sizeMix ? "mix" : "pick";
   if (typeof f.inStock === "boolean") u.in_stock = f.inStock ? 1 : 0;
   if (typeof f.hidden === "boolean") u.hidden = f.hidden ? 2 : 0;
