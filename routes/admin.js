@@ -3,6 +3,8 @@ const crypto = require("crypto");
 const express = require("express");
 const products = require("../products");
 const { BY_KEY } = require("../categories");
+const { parsePriceRules } = require("../parse");
+const rulesText = (rules) => (rules || []).map((r) => `${[...(r.c || []), ...(r.s || [])].join(" ") || "все"}: ${r.p}тг`).join("\n");
 
 const router = express.Router();
 const ADMIN_IDS = String(process.env.ADMIN_CHAT_ID || "").split(",").map((x) => parseInt(x.trim(), 10)).filter(Boolean);
@@ -32,7 +34,7 @@ router.post("/api/admin/get", (req, res) => {
   if (!r) return res.status(404).json({ error: "not found" });
   const j = products.toJSON(r);
   res.json({
-    id: r.id, name: r.name, sizes: (jarr(r.sizes) || []).join(" "), price: r.price_per_unit, pack: r.pack_qty, sale: r.sale_price || null, category: r.category || "",
+    id: r.id, name: r.name, priceText: rulesText(jarr(r.price_rules)), sizes: (jarr(r.sizes) || []).join(" "), price: r.price_per_unit, pack: r.pack_qty, sale: r.sale_price || null, category: r.category || "",
     country: r.country || "", inStock: !!r.in_stock, hidden: r.hidden === 2, unit: j.unit,
     colorMode: products.colorMode(r) === "skip1" ? "pick" : products.colorMode(r),
     colorPhotos: jarr(r.color_photos) || products.colorOpts(r).filter((o) => o.photo !== null).map((o) => o.k),
@@ -51,6 +53,11 @@ router.post("/api/admin/save", (req, res) => {
   if (f.pack !== undefined) { const n = int(f.pack); if (n > 0 && n < 1000) u.pack_qty = n; }
   if (f.sale !== undefined) { const n = int(f.sale); u.sale_price = n > 0 && n < (u.price_per_unit || r.price_per_unit) ? n : null; }
   if (f.category !== undefined && (f.category === "" || BY_KEY[f.category])) u.category = f.category || null;
+  if (typeof f.priceText === "string") {
+    const rules = parsePriceRules(f.priceText.split(/\n+/).map((s) => s.trim()).filter(Boolean));
+    u.price_rules = rules.length ? JSON.stringify(rules) : null;
+    if (rules.length) u.price_per_unit = Math.min(...rules.map((x) => x.p));
+  }
   if (typeof f.sizes === "string") u.sizes = JSON.stringify([...new Set(f.sizes.split(/[\s,;]+/).map((s) => s.trim().toUpperCase()).filter(Boolean))].slice(0, 15));
   if (typeof f.country === "string") u.country = f.country.trim().slice(0, 40);
   if (typeof f.inStock === "boolean") u.in_stock = f.inStock ? 1 : 0;

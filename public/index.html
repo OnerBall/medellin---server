@@ -192,6 +192,7 @@ textarea.field{height:80px;padding:14px 16px;resize:none}
 .crow .cth{width:46px;height:58px;border-radius:11px;background:center/cover;flex:none}
 .crow span{flex:1;font-size:15px;font-weight:500}
 .stepper.sm button{width:38px;height:40px;font-size:20px}.stepper.sm b{min-width:22px;font-size:16px}
+.crow span small.cpr{display:block;font-size:12px;color:var(--cream2);font-weight:500;margin-top:2px}
 .chint{font-size:13px;color:var(--gold);margin:-4px 0 8px}
 .trust{display:flex;align-items:center;gap:14px;padding:14px 16px;margin-bottom:14px}
 .trust .fl{display:flex;flex:none}.trust .fl i{font-style:normal;font-size:24px;margin-right:-6px;filter:drop-shadow(0 2px 4px rgba(0,0,0,.35))}
@@ -209,6 +210,7 @@ textarea.field{height:80px;padding:14px 16px;resize:none}
 .ef label{display:block;font-size:12px;color:var(--cream2);padding:10px 0;border-bottom:1px solid var(--line)}
 .ef label:last-child{border-bottom:0}.ef label small{opacity:.8}
 .ef select option{color:#000}
+.ef textarea{display:block;width:100%;margin-top:6px;font:inherit;font-size:15px;line-height:1.5;color:var(--cream);background:none;border:0;outline:0;resize:vertical}
 .ef input,.ef select,.ein{display:block;width:100%;margin-top:6px;font:inherit;font-size:16px;color:var(--cream);background:none;border:0;outline:0;padding:2px 0}
 .ein{padding:12px 14px;border-radius:14px;background:rgba(245,235,221,.06);box-shadow:inset 0 0 0 1px var(--line)}
 .ef .two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
@@ -288,7 +290,7 @@ const tabs = (on) => `<nav class="tabs">${[["home", "Главная", I.home], [
   .map(([k, l, s]) => `<button class="tab ${on === k ? "on" : ""}" data-tab="${k}">${s}${l}${k === "cart" && cartCount() ? `<span class="badge">${cartCount()}</span>` : ""}</button>`).join("")}</nav>`;
 
 const card = (p) => `<button class="card" data-p="${p.id}"><div class="img" style="background-image:url('${p.photos[0]}')">${p.hasVideo ? '<span class="play">▶</span>' : ""}${!p.inStock ? '<span class="tag out">Нет в наличии</span>' : p.sale ? `<span class="tag sale">−${p.sale}%</span>` : p.isNew ? '<span class="tag">Новинка</span>' : ""}</div>
-  <div class="b"><div class="n">${esc(p.name)}</div>${p.oldPrice ? `<div class="old">${money(p.oldPrice)} ₸</div>` : ""}<div class="p">${money(p.price)} ₸ / ${p.unit.label}</div>${alt(p.price) ? `<div class="alt">${alt(p.price)}</div>` : ""}<div class="q">упаковка ${p.pack} ${plural(p.pack, ...p.unit.forms)}</div></div>${p.inStock ? `<span class="add" data-add="${p.id}" role="button" aria-label="В корзину">+</span>` : ""}</button>`;
+  <div class="b"><div class="n">${esc(p.name)}</div>${p.oldPrice ? `<div class="old">${money(p.oldPrice)} ₸</div>` : ""}<div class="p">${varies(p) ? "от " : ""}${money(p.price)} ₸ / ${p.unit.label}</div>${alt(p.price) ? `<div class="alt">${alt(p.price)}</div>` : ""}<div class="q">упаковка ${p.pack} ${plural(p.pack, ...p.unit.forms)}</div></div>${p.inStock ? `<span class="add" data-add="${p.id}" role="button" aria-label="В корзину">+</span>` : ""}</button>`;
 
 const emptyCatalog = () => `<div class="empty"><b>Каталог наполняется</b>Скоро здесь появятся товары. А пока — пишите нам в WhatsApp.</div>`;
 
@@ -334,6 +336,7 @@ const VIEWS = {
         <div class="two"><label>Цена ${esc(f.unit.per)}, ₸<input id="e_price" inputmode="numeric" value="${f.price || ""}"></label><label>В упаковке, ${esc(f.unit.forms[2])}<input id="e_pack" inputmode="numeric" value="${f.pack || ""}"></label></div>
         <label>Размеры <small>через пробел, пусто — без выбора размера</small><input id="e_sizes" value="${esc(f.sizes || "")}" placeholder="S M L XL XXL"></label>
         <label>Цена со скидкой, ₸ <small>пусто — без скидки</small><input id="e_sale" inputmode="numeric" value="${f.sale || ""}"></label>
+        <label>Разные цены <small>по цвету или размеру, каждая с новой строки — пусто, если цена одна</small><textarea id="e_prices" rows="${Math.max(2, (f.priceText || "").split("\n").length)}" placeholder="белый: 990тг&#10;белый XXL 3XL: 1150тг&#10;серый черный: 1100тг">${esc(f.priceText || "")}</textarea></label>
         <label>Категория<select id="e_cat">${opt("", "— без категории —", f.category)}${cats}</select></label>
         <label>Производство <small>пусто — не показывать</small><input id="e_country" value="${esc(f.country)}" placeholder="Турция, Китай…"></label>
       </div>
@@ -390,28 +393,28 @@ const VIEWS = {
       ${p.media.length > 1 ? `<div class="dots">${p.media.map((_, i) => `<i class="${i ? "" : "on"}"></i>`).join("")}</div>` : ""}</div>
       ${S.admin ? `<button class="editb" data-edit="${p.id}">✏️ Редактировать товар</button>` : ""}
       <div class="pname">${esc(p.name)}</div>
-      <div class="prices"><b>${money(p.price)} ₸</b>${p.oldPrice ? `<s>${money(p.oldPrice)} ₸</s><span class="disc">−${p.sale}%</span>` : ""}<span>${p.unit.per}${alt(p.price) ? " · " + alt(p.price) : ""}</span></div>
-      <div class="pack glass"><div><small>Цена за упаковку · ${p.pack} ${plural(p.pack, ...p.unit.forms)}</small><b>${money(p.price * p.pack)} ₸</b>${alt(p.price * p.pack) ? `<div class="alt">${alt(p.price * p.pack)}</div>` : ""}</div><span style="color:var(--rose);font-size:13px;font-weight:600">${p.inStock ? "Опт" : "Нет в наличии"}</span></div>
+      <div class="prices"><b>${varies(p) && (!size || (multi && col < 0)) ? "от " : ""}${money(vprice(p, size, col))} ₸</b>${p.oldPrice ? `<s>${money(p.oldPrice)} ₸</s><span class="disc">−${p.sale}%</span>` : ""}<span>${p.unit.per}${alt(p.price) ? " · " + alt(p.price) : ""}</span></div>
+      <div class="pack glass"><div><small>Цена за упаковку · ${p.pack} ${plural(p.pack, ...p.unit.forms)}</small><b>${varies(p) && (!size || (multi && col < 0)) ? "от " : ""}${money(vprice(p, size, col) * p.pack)} ₸</b>${alt(p.price * p.pack) ? `<div class="alt">${alt(p.price * p.pack)}</div>` : ""}</div><span style="color:var(--rose);font-size:13px;font-weight:600">${p.inStock ? "Опт" : "Нет в наличии"}</span></div>
       ${p.sizes.length ? `<div class="lbl">Размер${p.sizes.length > 1 ? " — выберите" : ""}</div><div class="sizes">${p.sizes.map((z) => `<button class="size ${size === z ? "on" : ""}" data-psize="${esc(z)}">${esc(z)}</button>`).join("")}</div>` : ""}
-      ${multi ? `<div class="lbl">${p.colorOpts[0].photo ? "Расцветки" : "Цвета"} — сколько упаковок</div>${p.sizes.length > 1 && !size ? `<div class="chint">Сначала выберите размер ↑</div>` : ""}<div class="crows">${p.colorOpts.map((o) => { const k = o.k, q = colorQty(p, size, k); return `<div class="crow ${q ? "on" : ""}">${o.photo ? `<button class="cth" data-cshow="${k}" style="background-image:url('${o.photo}')" aria-label="Показать ${esc(o.label)}"></button>` : `<span class="csw" style="background:${swatch(o.label)}"></span>`}<span>${esc(o.label[0].toUpperCase() + o.label.slice(1))}</span><div class="stepper sm"><button data-cstep="${k}:-1" aria-label="Меньше" ${q ? "" : 'style="opacity:.3"'}>−</button><b>${q}</b><button data-cstep="${k}:1" aria-label="Больше">+</button></div></div>`; }).join("")}</div>` : ""}
-      ${p.colors.length ? `<div class="lbl">Цвета</div><div class="colors">${p.colors.map((c) => `<i style="background:${esc(c.hex)}" title="${esc(c.name)}"></i>`).join("")}</div>` : ""}
+      ${multi ? `<div class="lbl">${p.colorOpts[0].photo ? "Расцветки" : "Цвета"} — сколько упаковок</div>${p.sizes.length > 1 && !size ? `<div class="chint">Сначала выберите размер ↑</div>` : ""}<div class="crows">${p.colorOpts.map((o) => { const k = o.k, q = colorQty(p, size, k); return `<div class="crow ${q ? "on" : ""}">${o.photo ? `<button class="cth" data-cshow="${k}" style="background-image:url('${o.photo}')" aria-label="Показать ${esc(o.label)}"></button>` : `<span class="csw" style="background:${swatch(o.label)}"></span>`}<span>${esc(o.label[0].toUpperCase() + o.label.slice(1))}${varies(p) ? `<small class="cpr">${money(vprice(p, size, k))} ₸ / ${p.unit.label}</small>` : ""}</span><div class="stepper sm"><button data-cstep="${k}:-1" aria-label="Меньше" ${q ? "" : 'style="opacity:.3"'}>−</button><b>${q}</b><button data-cstep="${k}:1" aria-label="Больше">+</button></div></div>`; }).join("")}</div>` : ""}
+      ${p.colors.length && !multi && p.colors.every((c) => c.hex) ? `<div class="lbl">Цвета</div><div class="colors">${p.colors.map((c) => `<i style="background:${esc(c.hex)}" title="${esc(c.name)}"></i>`).join("")}</div>` : ""}
       <div class="info glass">${info.map(([a, b]) => `<div><span>${a}</span><span>${esc(b)}</span></div>`).join("")}</div>
       ${p.description ? `<div class="lbl">Описание</div><div class="desc">${esc(p.description)}</div>` : ""}
-      <div class="bar">${p.inStock && multi ? (() => { const all = S.cart.filter((i) => i.id === p.id), n2 = all.reduce((a, i) => a + i.qty, 0);
-          return n2 ? `<button class="btn" data-tab="cart">${I.check}В корзине ${n2} уп. · ${money(p.price * p.pack * n2)} ₸ →</button>` : `<button class="btn" style="opacity:.45" data-cneed>Укажите количество расцветок</button>`; })()
+      <div class="bar">${p.inStock && multi ? (() => { const all = S.cart.filter((i) => i.id === p.id), n2 = all.reduce((a, i) => a + i.qty, 0), s2 = all.reduce((a, i) => a + vprice(p, i.size, cc(i)) * p.pack * i.qty, 0);
+          return n2 ? `<button class="btn" data-tab="cart">${I.check}В корзине ${n2} уп. · ${money(s2)} ₸ →</button>` : `<button class="btn" style="opacity:.45" data-cneed>Укажите количество расцветок</button>`; })()
         : p.inStock ? (inc ? `<div class="stepper"><button data-incq="-1" aria-label="Убрать одну">−</button><b>${n}</b><button data-incq="1" aria-label="Добавить ещё">+</button></div>
-        <button class="btn" data-tab="cart">${I.check}В корзине · ${money(p.price * p.pack * n)} ₸</button>` : `<div class="stepper"><button data-pq="-1" aria-label="Меньше" ${qty <= 1 ? 'style="opacity:.3"' : ""}>−</button><b>${qty}</b><button data-pq="1" aria-label="Больше">+</button></div>
-        <button class="btn" data-buy="${p.id}">${I.cart}В корзину · ${money(p.price * p.pack * qty)} ₸</button>`)
+        <button class="btn" data-tab="cart">${I.check}В корзине · ${money(vprice(p, size, col) * p.pack * n)} ₸</button>` : `<div class="stepper"><button data-pq="-1" aria-label="Меньше" ${qty <= 1 ? 'style="opacity:.3"' : ""}>−</button><b>${qty}</b><button data-pq="1" aria-label="Больше">+</button></div>
+        <button class="btn" data-buy="${p.id}">${I.cart}В корзину · ${money(vprice(p, size, col) * p.pack * qty)} ₸</button>`)
         : `<button class="btn ghost" data-wa="Здравствуйте! Когда будет в наличии: ${esc(p.name)}?">${I.wa}Спросить о наличии</button>`}</div>`;
   },
   cart() {
     if (!S.cart.length) return `<div class="back"><button class="icon-btn glass" data-back aria-label="Назад">${I.back}</button><h1>Корзина</h1></div>
       <div class="empty"><b>Корзина пуста</b>Добавьте товары из каталога</div><button class="btn" data-tab="cat" style="width:100%">Перейти в каталог</button>`;
-    const total = S.cart.reduce((a, i) => { const p = byId(i.id); return a + (p ? p.price * p.pack * i.qty : 0); }, 0);
+    const total = S.cart.reduce((a, i) => { const p = byId(i.id); return a + (p ? vprice(p, i.size, cc(i)) * p.pack * i.qty : 0); }, 0);
     const f = S.form;
     return `<div class="back" style="justify-content:space-between"><div style="display:flex;align-items:center;gap:12px"><button class="icon-btn glass" data-back aria-label="Назад">${I.back}</button><h1>Корзина</h1></div><button class="chip" id="clearcart">Очистить</button></div>
       ${S.cart.map((i, k) => { const p = byId(i.id); return `<div class="citem glass"><div class="img" style="background-image:url('${(colorOpt(p, cc(i)) || {}).photo || p.photos[0]}')"></div>
-        <div class="m"><b>${esc(p.name)}</b><small>${i.size ? esc(i.size) + " · " : ""}${colorOpt(p, cc(i)) ? `${esc(colorOpt(p, cc(i)).label.replace(/^Расцветка/, "расцветка"))} · ` : ""}${p.pack} ${plural(p.pack, ...p.unit.forms)} в упаковке · ${money(p.price)} ₸/${p.unit.label}</small><span class="s">${money(p.price * p.pack * i.qty)} ₸</span></div>
+        <div class="m"><b>${esc(p.name)}</b><small>${i.size ? esc(i.size) + " · " : ""}${colorOpt(p, cc(i)) ? `${esc(colorOpt(p, cc(i)).label.replace(/^Расцветка/, "расцветка"))} · ` : ""}${p.pack} ${plural(p.pack, ...p.unit.forms)} в упаковке · ${money(vprice(p, i.size, cc(i)))} ₸/${p.unit.label}</small><span class="s">${money(vprice(p, i.size, cc(i)) * p.pack * i.qty)} ₸</span></div>
         <div class="stepper"><button data-cq="${k}:-1" aria-label="Меньше">−</button><b>${i.qty}</b><button data-cq="${k}:1" aria-label="Больше">+</button></div></div>`; }).join("")}
       <div class="total"><div><small>Итого · ${cartCount()} упак.</small><b>${money(total)} ₸</b>${alt(total) ? `<div class="alt" style="font-size:14px">${alt(total)}</div>` : ""}</div></div>
       ${total < S.data.shop.minOrder ? `<div class="minbar">Минимальная сумма заказа — <b>${money(S.data.shop.minOrder)} ₸</b>. Добавьте ещё на <b class="gold">${money(S.data.shop.minOrder - total)} ₸</b>
@@ -483,6 +486,16 @@ const hasColors = (p) => (p.colorOpts || []).length > 1;
 const colorOpt = (p, k) => (p.colorOpts || []).find((o) => o.k === k);
 const SW = { "чёрн": "#1a1a1a", "черн": "#1a1a1a", "бел": "#fff", "молоч": "#f3ead8", "крас": "#c8202e", "бордо": "#6d1424", "роз": "#f2a7bd", "пудр": "#e8c4bd", "голуб": "#9cc7ee", "син": "#2a4fa0", "беж": "#d9c2a3", "сер": "#9a9a9a", "зел": "#3f8f5a", "олив": "#7b7d3d", "жёлт": "#f1cf45", "желт": "#f1cf45", "корич": "#6b4630", "шоколад": "#5a3a28", "мокко": "#8a6b55", "фиол": "#7a4fa3", "сирен": "#b59ad6", "лаванд": "#c4b5e6", "мят": "#a8e0cc", "персик": "#f7b99a", "корал": "#f27a63", "оранж": "#f08a2c", "капуч": "#b08e70", "лилов": "#9c5ab8", "хаки": "#7a7350", "изумруд": "#1f7a5c" };
 const swatch = (name) => { const s = String(name).toLowerCase(); const k = Object.keys(SW).find((x) => s.includes(x)); return k ? SW[k] : "linear-gradient(135deg,#f2a7bd,#9cc7ee,#f1cf45)"; };
+// цена за штуку для размера и цвета (разные цены у белого / чёрного, у больших размеров)
+const ncol = (s) => String(s || "").toLowerCase().replace(/ё/g, "е").trim();
+function vprice(p, size, k) {
+  const rules = p.priceRules || []; if (!rules.length) return p.price;
+  const o = colorOpt(p, k), c = o ? ncol(o.label) : "", z = String(size || (p.sizes.length === 1 ? p.sizes[0] : "")).toUpperCase();
+  let best = null, sc = -1;
+  for (const r of rules) { if (r.c && !(c && r.c.map(ncol).includes(c))) continue; if (r.s && !(z && r.s.includes(z))) continue; const s = (r.c ? 1 : 0) + (r.s ? 2 : 0); if (s >= sc) { sc = s; best = r; } }
+  return best ? best.p : p.price;
+}
+const varies = (p) => (p.priceRules || []).length > 0;
 const effSize = (p, size) => size || (p.sizes.length === 1 ? p.sizes[0] : "");
 colorQty.of = (i) => (Number.isInteger(i.c) ? i.c : -1);
 function colorQty(p, size, k) { const z = effSize(p, size); const it = S.cart.find((i) => i.id === p.id && i.size === z && cc(i) === k); return it ? it.qty : 0; }
@@ -682,7 +695,7 @@ async function openEdit(id) {
 }
 function bindEdit(cur) {
   const f = S.edit.f, val = (s) => ($(s) || {}).value;
-  const sync = () => { f.name = val("#e_name"); f.price = val("#e_price"); f.pack = val("#e_pack"); f.sale = val("#e_sale"); f.category = val("#e_cat"); f.country = val("#e_country"); f.sizes = val("#e_sizes");
+  const sync = () => { f.name = val("#e_name"); f.price = val("#e_price"); f.pack = val("#e_pack"); f.sale = val("#e_sale"); f.category = val("#e_cat"); f.country = val("#e_country"); f.sizes = val("#e_sizes"); f.priceText = val("#e_prices");
     if ($("#e_names")) f.colorNames = val("#e_names").split(/[,;\n]+/).map((s) => s.trim()).filter(Boolean); };
   const rerender = () => { sync(); const y = window.scrollY; render(); window.scrollTo(0, y); };
   app.querySelectorAll("[data-cm]").forEach((b) => (b.onclick = () => { haptic(); f.colorMode = b.dataset.cm; rerender(); }));

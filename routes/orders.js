@@ -51,7 +51,7 @@ router.post("/api/orders", async (req, res) => {
     const size = sizes.includes(it.size) ? it.size : "";
     const opts = products.colorOpts(r), opt = opts.length > 1 ? opts.find((o) => o.k === it.c) : null;
     const c = opt ? opt.k : -1, cl = opt ? opt.label : "", cp = opt && opt.photo !== null ? opt.photo : -1;
-    items.push({ id: r.id, name: r.name, size, c, cl, cp, qty, pack: r.pack_qty, price: products.effPrice(r), unit: r.unit || "pcs" });
+    items.push({ id: r.id, name: r.name, size, c, cl, cp, qty, pack: r.pack_qty, price: products.varPrice(r, size, cl), unit: r.unit || "pcs" });
   }
   const total = items.reduce((s, i) => s + i.price * i.pack * i.qty, 0);
   if (total < MIN_ORDER) return res.status(400).json({ error: `Минимальная сумма заказа — ${MIN_ORDER.toLocaleString("ru-RU").replace(/\u00a0/g, " ")} ₸` });

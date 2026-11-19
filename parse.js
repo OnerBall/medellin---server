@@ -23,6 +23,32 @@ const SIZE_RE = /^(XXS|XS|S|M|L|XL|XXL|XXXL|[2-8]XL|\d{2,3}(?:[-–\/]\d{2,3})?|
 const stripDecor = (s) => s.replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}\u{2B00}-\u{2BFF}❗️❕‼️⭐️✨]/gu, "").replace(/\s{2,}/g, " ").trim();
 const num = (s) => parseInt(String(s).replace(/[\s., ]/g, ""), 10);
 
+const normSize = (x) => { const s = x.toUpperCase().replace(/^XXXL$/, "3XL").replace(/^2XL$/, "XXL"); return s; };
+const normColor = (s) => String(s).toLowerCase().replace(/ё/g, "е").trim();
+function parsePriceRules(body) {
+  const rules = []; let group = null;
+  const priceRe = /(\d[\d\s., ]*\d|\d)\s*(?:тг|₸|тенге|tg|kzt)/i;
+  for (const raw of body) {
+    let l = stripDecor(raw).replace(/^цен[аы]\s*[:\-–]?\s*/i, "");
+    const m = l.match(priceRe);
+    if (!m) continue;
+    const label = l.slice(0, m.index).replace(/(со скидкой|скидк\w*|был[аио]?|за\s+\S+|опт\w*)/gi, " ").replace(/[-–—:=]+\s*$/, "").trim();
+    if (!label) continue;
+    const ORD = ["XXS", "XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL"];
+    const toks = label.split(/[\s,;\/]+|\s+и\s+/).map((t) => t.replace(/[.:]+$/, "")).filter(Boolean)
+      .flatMap((t) => { const r = t.match(/^([a-z0-9]+)[-–]([a-z0-9]+)$/i); if (!r) return [t]; const a1 = ORD.indexOf(normSize(r[1])), b1 = ORD.indexOf(normSize(r[2])); return a1 >= 0 && b1 > a1 ? ORD.slice(a1, b1 + 1) : [t]; });
+    const sz = toks.filter((t) => SIZE_RE.test(t)).map(normSize);
+    const cl = toks.filter((t) => !SIZE_RE.test(t) && /^[а-яё]{3,}$/i.test(t) && !/^(цена|размер\w*|шт|упаков\w*|и|для|все)$/i.test(t)).map(normColor);
+    if (!sz.length && !cl.length) continue;
+    if (sz.length + cl.length < toks.length / 2) continue; // это просто текст, а не вариант
+    if (cl.length) group = cl;
+    const p = parseInt(m[1].replace(/[\s., ]/g, ""), 10);
+    if (!(p > 0)) continue;
+    rules.push({ c: cl.length ? cl : group, s: sz.length ? sz : null, p });
+  }
+  return rules.length >= 2 ? rules : [];
+}
+
 function parseCaption(caption) {
   const raw = (caption || "").trim();
   const hashtags = (raw.match(/#[0-9A-Za-zА-Яа-яЁё_]+/g) || []).map((h) => h.slice(1).toLowerCase());
@@ -107,6 +133,18 @@ function parseCaption(caption) {
     for (const [stem, c] of Object.entries(COLORS)) if (t.includes(stem)) colors.push({ name: c[0], hex: c[1] });
   }
 
+  // разные цены по цвету/размеру:
+  //   «Цена: Белый- 990тг» / «2xl 3xl- 1150тг» / «Серый, черный- 1100тг» / «2xl 3xl- 1180тг»
+  //   строка с размерами без цвета относится к последнему названному цвету
+  const priceRules = parsePriceRules(body);
+  if (priceRules.length) {
+    if (price === null || !priceRules.some((r) => r.p === price)) price = Math.min(...priceRules.map((r) => r.p));
+    const rc = [...new Set(priceRules.flatMap((r) => r.c || []))];
+    if (rc.length > 1 && !colors.length) rc.forEach((name) => colors.push({ name }));
+    const rs = [...new Set(priceRules.flatMap((r) => r.s || []))];
+    for (const z of rs) if (sizes.length && !sizes.includes(z)) sizes.push(z);
+  }
+
   // страна производства
   let country = ""; // страну показываем, только если она указана в посте
   const countryLine = body.find((l) => /производств/i.test(l));
@@ -130,9 +168,9 @@ function parseCaption(caption) {
   if (unit === "box") {
     const minLine = body.find((l) => /(минимум|мин\.?|от)\s*(от\s*)?\d+\s*(-?х|-?ти)?\s*короб/i.test(l));
     const mb = minLine ? parseInt(minLine.match(/(\d+)\s*(-?х|-?ти)?\s*короб/i)[1], 10) : 1;
-    return { name, price, salePrice, pack: mb > 0 && mb < 100 ? mb : 1, packGuessed: false, sizes, colors, country, description, hashtags, category, unit };
+    return { name, price, salePrice, priceRules, pack: mb > 0 && mb < 100 ? mb : 1, packGuessed: false, sizes, colors, country, description, hashtags, category, unit };
   }
-  return { name, price, salePrice, pack, packGuessed, sizes, colors, country, description, hashtags, category, unit };
+  return { name, price, salePrice, priceRules, pack, packGuessed, sizes, colors, country, description, hashtags, category, unit };
 }
 
-module.exports = { parseCaption, PACK_DEFAULT };
+module.exports = { parseCaption, PACK_DEFAULT, parsePriceRules };

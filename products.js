@@ -9,6 +9,24 @@ try { db.exec("ALTER TABLE products ADD COLUMN color_mode TEXT"); } catch (e) { 
 const MIX_RE = /(разн[а-яё]*|микс|ассорти|разноцветн[а-яё]*)\s+(цвет|расцвет)|(цвет[а-яё]*|расцветк[а-яё]*)\s*[:\-–]?\s*(микс|ассорти|разные)|в\s+ассортименте/i;
 try { db.exec("ALTER TABLE products ADD COLUMN color_photos TEXT"); } catch (e) { /* уже есть */ }
 try { db.exec("ALTER TABLE products ADD COLUMN color_names TEXT"); } catch (e) { /* уже есть */ }
+try { db.exec("ALTER TABLE products ADD COLUMN price_rules TEXT"); } catch (e) { /* уже есть */ }
+const nc = (s) => String(s || "").toLowerCase().replace(/ё/g, "е").trim();
+// цена за штуку для конкретного размера и цвета (самое точное правило выигрывает)
+function varPrice(r, size, colorLabel) {
+  const base = effPrice(r);
+  const rules = jarr(r.price_rules) || [];
+  if (!rules.length) return base;
+  const c = nc(colorLabel), z = String(size || "").toUpperCase();
+  let best = null, score = -1;
+  for (const ru of rules) {
+    if (ru.c && !(c && ru.c.map(nc).includes(c))) continue;
+    if (ru.s && !(z && ru.s.includes(z))) continue;
+    const sc = (ru.c ? 1 : 0) + (ru.s ? 2 : 0);
+    if (sc >= score) { score = sc; best = ru; }
+  }
+  if (!best) return base;
+  return onSale(r) ? Math.round(best.p * r.sale_price / r.price_per_unit) : best.p;
+}
 const colorMode = (r) => r.color_mode || (MIX_RE.test(r.caption || "") ? "mix" : "pick");
 const colorFrom = (r) => (colorMode(r) === "skip1" ? 1 : 0);
 // варианты расцветок для покупателя: [{ k, label, photo }]
@@ -36,6 +54,15 @@ const { parseCaption } = require("./parse");
 // товары, загруженные до того, как бот научился читать «Черный: S M L» — дочитываем размеры и цвета из подписи
 for (const r of db.prepare("SELECT id, caption, sizes, colors FROM products WHERE caption IS NOT NULL AND caption != '' AND (sizes IS NULL OR sizes = '[]')").all()) {
   try { const p = parseCaption(r.caption); if (p.sizes.length) db.prepare("UPDATE products SET sizes=?, colors=? WHERE id=?").run(JSON.stringify(p.sizes), JSON.stringify(p.colors.length ? p.colors : JSON.parse(r.colors || "[]")), r.id); } catch (e) { /* пропускаем */ }
+}
+// цены по цвету/размеру для уже загруженных товаров
+for (const r of db.prepare("SELECT id, caption, colors, color_mode FROM products WHERE price_rules IS NULL AND caption LIKE '%тг%'").all()) {
+  try {
+    const p = parseCaption(r.caption);
+    if (!p.priceRules.length) continue;
+    const old = JSON.parse(r.colors || "[]");
+    db.prepare("UPDATE products SET price_rules=?, price_per_unit=?, sizes=?, colors=? WHERE id=?").run(JSON.stringify(p.priceRules), p.price, JSON.stringify(p.sizes), JSON.stringify(old.length && !r.color_mode ? old : p.colors.length ? p.colors : old), r.id);
+  } catch (e) { /* пропускаем */ }
 }
 const { BY_KEY } = require("./categories");
 const { unitOf, plural, detectUnit } = require("./units");
@@ -128,6 +155,7 @@ function importPost(post) {
         sizes: JSON.stringify(p.sizes), colors: JSON.stringify(p.colors), country: p.country, category: p.category || row.category, unit: p.unit
       });
       if (p.salePrice) f.sale_price = p.salePrice;
+      f.price_rules = p.priceRules.length ? JSON.stringify(p.priceRules) : null;
     }
     // повторная пересылка того же поста: дотягиваем то, что бот раньше не умел распознать
     // (скидку, название вместо «СКИДКА», категорию) — ручные правки админа не трогаем
@@ -142,7 +170,7 @@ function importPost(post) {
     f.hidden = row.hidden === 2 ? 2 : complete(f) ? 0 : 1;
     db.prepare(`UPDATE products SET name=@name, description=@description, price_per_unit=@price_per_unit, pack_qty=@pack_qty, sizes=@sizes,
       colors=@colors, country=@country, category=@category, unit=@unit, photos=@photos, media=@media, caption=@caption, hidden=@hidden,
-      sale_price=@sale_price, updated_at=@updated_at WHERE id=@id`).run(f);
+      sale_price=@sale_price, price_rules=@price_rules, updated_at=@updated_at WHERE id=@id`).run({ price_rules: row.price_rules, ...f });
     return { product: get(row.id), created: false, captionChanged: captionChanged || fixed, mediaChanged };
   }
 
@@ -158,13 +186,13 @@ function importPost(post) {
   const id = newId();
   const f = {
     id, name: p.name || "Товар", category: p.category, description: p.description, price_per_unit: p.price, pack_qty: p.pack,
-    sizes: JSON.stringify(p.sizes), colors: JSON.stringify(p.colors), country: p.country, unit: p.unit, sale_price: p.salePrice || null,
+    sizes: JSON.stringify(p.sizes), colors: JSON.stringify(p.colors), country: p.country, unit: p.unit, sale_price: p.salePrice || null, price_rules: p.priceRules.length ? JSON.stringify(p.priceRules) : null,
     photos: JSON.stringify(photos), media: JSON.stringify(media), source: post.source || null, media_group_id: post.mediaGroupId || null,
     caption, created_at: now, updated_at: now
   };
   f.hidden = complete(f) ? 0 : 1;
-  db.prepare(`INSERT INTO products (id,name,category,description,price_per_unit,pack_qty,sizes,colors,country,unit,sale_price,in_stock,hidden,photos,media,source,media_group_id,caption,created_at,updated_at)
-    VALUES (@id,@name,@category,@description,@price_per_unit,@pack_qty,@sizes,@colors,@country,@unit,@sale_price,1,@hidden,@photos,@media,@source,@media_group_id,@caption,@created_at,@updated_at)`).run(f);
+  db.prepare(`INSERT INTO products (id,name,category,description,price_per_unit,pack_qty,sizes,colors,country,unit,sale_price,price_rules,in_stock,hidden,photos,media,source,media_group_id,caption,created_at,updated_at)
+    VALUES (@id,@name,@category,@description,@price_per_unit,@pack_qty,@sizes,@colors,@country,@unit,@sale_price,@price_rules,1,@hidden,@photos,@media,@source,@media_group_id,@caption,@created_at,@updated_at)`).run(f);
   // ждал ли этот товар видеообзор?
   for (const pr of db.prepare("SELECT rowid, code, media FROM pending_reviews").all()) {
     if (!codeRe(pr.code).test(f.name)) continue;
@@ -176,7 +204,7 @@ function importPost(post) {
 }
 
 function update(id, fields) {
-  const allowed = ["sizes", "category", "price_per_unit", "pack_qty", "in_stock", "hidden", "name", "admin_msg_id", "unit", "sale_price", "color_mode", "country", "color_photos", "color_names"];
+  const allowed = ["price_rules", "sizes", "category", "price_per_unit", "pack_qty", "in_stock", "hidden", "name", "admin_msg_id", "unit", "sale_price", "color_mode", "country", "color_photos", "color_names"];
   const sets = Object.keys(fields).filter((k) => allowed.includes(k));
   if (!sets.length) return get(id);
   db.prepare(`UPDATE products SET ${sets.map((k) => `${k}=@${k}`).join(", ")}, updated_at=@u WHERE id=@id`).run({ ...fields, u: Date.now(), id });
@@ -214,7 +242,7 @@ function toJSON(r) {
   const u = unitOf(r.unit);
   return {
     id: r.id, name: r.name, section: c ? c.section : null, category: r.category, description: r.description || "",
-    price: effPrice(r), oldPrice: onSale(r) ? r.price_per_unit : null, sale: onSale(r) ? Math.round((1 - r.sale_price / r.price_per_unit) * 100) : 0, pack: r.pack_qty, unit: { key: r.unit || "pcs", ...u }, sizes: JSON.parse(r.sizes || "[]"),
+    priceRules: (jarr(r.price_rules) || []).map((ru) => ({ c: ru.c, s: ru.s, p: onSale(r) ? Math.round(ru.p * r.sale_price / r.price_per_unit) : ru.p })), price: effPrice(r), oldPrice: onSale(r) ? r.price_per_unit : null, sale: onSale(r) ? Math.round((1 - r.sale_price / r.price_per_unit) * 100) : 0, pack: r.pack_qty, unit: { key: r.unit || "pcs", ...u }, sizes: JSON.parse(r.sizes || "[]"),
     colors: JSON.parse(r.colors || "[]"), country: r.country || "", inStock: !!r.in_stock,
     isNew: Date.now() - r.created_at < NEW_DAYS * 86400e3, photos: photos.map((_, i) => `/photo/${r.id}/${i}`), media,
     hasVideo: media.some((m) => m.type === "video"), nPhotos: media.filter((m) => m.type === "photo").length || photos.length, noColors: colorMode(r) === "mix", colorFrom: colorFrom(r), colorOpts: colorOpts(r).map((o) => ({ k: o.k, label: o.label, photo: o.photo === null ? null : photos[o.photo] || null })), createdAt: r.created_at
@@ -227,4 +255,4 @@ function listPublic() {
 
 const packText = (r) => `${r.pack_qty} ${plural(r.pack_qty, unitOf(r.unit).forms)}`;
 
-module.exports = { colorOpts, colorMode, colorFrom, onSale, effPrice, importPost, update, remove, get, toJSON, listPublic, isPublic, mediaOf, packText, VIDEO_MAX };
+module.exports = { varPrice, colorOpts, colorMode, colorFrom, onSale, effPrice, importPost, update, remove, get, toJSON, listPublic, isPublic, mediaOf, packText, VIDEO_MAX };
