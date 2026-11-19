@@ -22,7 +22,8 @@ router.get("/api/catalog", (req, res) => {
       whatsapp: (process.env.WHATSAPP || "77022585183").replace(/\D/g, ""),
       channel: process.env.CHANNEL_URL || "",
       minPack: parseInt(process.env.PACK_DEFAULT || "12", 10),
-      minOrder: parseInt(process.env.MIN_ORDER || "50000", 10)
+      minOrder: parseInt(process.env.MIN_ORDER || "50000", 10),
+      minOrderCis: parseInt(process.env.MIN_ORDER_CIS || "150000", 10)
     },
     countries: rates.COUNTRIES.map((c) => ({ ...c, rate: rates.rate(c.cur) })),
     sections: SECTIONS.map((s) => ({

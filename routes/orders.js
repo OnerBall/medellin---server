@@ -12,6 +12,7 @@ const { unitOf, plural } = require("../units");
 const itemTag = (i) => { const t = [i.size, Number.isInteger(i.c) && i.c >= 0 ? (i.cl ? i.cl.replace(/^Расцветка/, "расцветка") : `расцветка №${i.c + 1}`) : ""].filter(Boolean).join(", "); return t ? ` (${t})` : ""; };
 const router = express.Router();
 const MIN_ORDER = parseInt(process.env.MIN_ORDER || "50000", 10);
+const MIN_ORDER_CIS = parseInt(process.env.MIN_ORDER_CIS || "150000", 10); // для покупателей из России и других стран СНГ
 
 // Проверка подписи Telegram initData — так мы знаем, кто оформил заказ
 function tgUser(initData) {
@@ -54,9 +55,10 @@ router.post("/api/orders", async (req, res) => {
     items.push({ id: r.id, name: r.name, size, c, cl, cp, qty, pack: r.pack_qty, price: products.varPrice(r, size, cl), unit: r.unit || "pcs" });
   }
   const total = items.reduce((s, i) => s + i.price * i.pack * i.qty, 0);
-  if (total < MIN_ORDER) return res.status(400).json({ error: `Минимальная сумма заказа — ${MIN_ORDER.toLocaleString("ru-RU").replace(/\u00a0/g, " ")} ₸` });
-  const user = tgUser(b.initData);
   const buyer = rates.BY_CODE[b.buyerCountry] ? b.buyerCountry : rates.countryByPhone(phone) || "KZ";
+  const minOrder = buyer === "KZ" ? MIN_ORDER : MIN_ORDER_CIS;
+  if (total < minOrder) return res.status(400).json({ error: `Минимальная сумма заказа — ${minOrder.toLocaleString("ru-RU").replace(/\u00a0/g, " ")} ₸` });
+  const user = tgUser(b.initData);
   const cur = rates.BY_CODE[buyer].cur;
   const id = String(Date.now()).slice(-6);
   const row = {

@@ -260,6 +260,9 @@ const openLink = (u) => { if (tg && tg.openLink) tg.openLink(u); else window.ope
 const S = { data: null, stack: [], cart: store.get("medellin_cart", []), q: "", ai: null, mic: false, form: store.get("medellin_form", {}), country: store.get("medellin_country", null) };
 const ctry = () => (S.data && S.data.countries.find((c) => c.code === S.country)) || null;
 // «≈ 110 сом» рядом с ценой в тенге — для покупателей не из Казахстана
+// минимальный заказ: Казахстан — MIN_ORDER, Россия и СНГ — MIN_ORDER_CIS
+const minOrd = () => (!S.country || S.country === "KZ" ? S.data.shop.minOrder : S.data.shop.minOrderCis || S.data.shop.minOrder);
+const minAlt = () => (alt(minOrd()) ? ` <span class="malt">(${alt(minOrd())})</span>` : "");
 const alt = (kzt) => { const c = ctry(); if (!c || c.cur === "KZT" || !c.rate) return ""; const v = kzt / c.rate; return `≈ ${money(c.cur === "UZS" ? Math.round(v / 100) * 100 : v)} ${c.sym}`; };
 const byId = (id) => S.data.products.find((p) => p.id === id);
 const sec = (k) => S.data.sections.find((s) => s.key === k);
@@ -417,15 +420,15 @@ const VIEWS = {
         <div class="m"><b>${esc(p.name)}</b><small>${i.size ? esc(i.size) + " · " : ""}${colorOpt(p, cc(i)) ? `${esc(colorOpt(p, cc(i)).label.replace(/^Расцветка/, "расцветка"))} · ` : ""}${p.pack} ${plural(p.pack, ...p.unit.forms)} в упаковке · ${money(vprice(p, i.size, cc(i)))} ₸/${p.unit.label}</small><span class="s">${money(vprice(p, i.size, cc(i)) * p.pack * i.qty)} ₸</span></div>
         <div class="stepper"><button data-cq="${k}:-1" aria-label="Меньше">−</button><b>${i.qty}</b><button data-cq="${k}:1" aria-label="Больше">+</button></div></div>`; }).join("")}
       <div class="total"><div><small>Итого · ${cartCount()} упак.</small><b>${money(total)} ₸</b>${alt(total) ? `<div class="alt" style="font-size:14px">${alt(total)}</div>` : ""}</div></div>
-      ${total < S.data.shop.minOrder ? `<div class="minbar">Минимальная сумма заказа — <b>${money(S.data.shop.minOrder)} ₸</b>. Добавьте ещё на <b class="gold">${money(S.data.shop.minOrder - total)} ₸</b>
-        <div class="track"><i style="width:${Math.min(100, total / S.data.shop.minOrder * 100)}%"></i></div></div>` : ""}
+      ${total < minOrd() ? `<div class="minbar">Минимальная сумма заказа — <b>${money(minOrd())} ₸</b>${minAlt()}. Добавьте ещё на <b class="gold">${money(minOrd() - total)} ₸</b>${alt(minOrd() - total) ? ` <span class="malt">(${alt(minOrd() - total)})</span>` : ""}
+        <div class="track"><i style="width:${Math.min(100, total / minOrd() * 100)}%"></i></div></div>` : ""}
       <div class="lbl">Данные для заказа</div>
       <input class="field" id="f_name" placeholder="Имя" value="${esc(f.name || (tg && tg.initDataUnsafe.user ? tg.initDataUnsafe.user.first_name : ""))}" autocomplete="name">
       <input class="field" id="f_phone" placeholder="Телефон, WhatsApp" value="${esc(f.phone || (ctry() || {}).phone || "+7 ")}" inputmode="tel" autocomplete="tel">
       <input class="field" id="f_city" placeholder="Город" value="${esc(f.city || "")}" autocomplete="address-level2">
       <input class="field" id="f_country" placeholder="Страна" value="${esc(f.country || (ctry() || {}).name || "Казахстан")}">
       <textarea class="field" id="f_comment" placeholder="Комментарий (необязательно)">${esc(f.comment || "")}</textarea>
-      <div class="bar">${total < S.data.shop.minOrder ? `<button class="btn" data-tab="cat">Добавить товары · ещё ${money(S.data.shop.minOrder - total)} ₸</button>` : `<button class="btn" id="order">Оформить заказ · ${money(total)} ₸</button>`}</div>`;
+      <div class="bar">${total < minOrd() ? `<button class="btn" data-tab="cat">Добавить товары · ещё ${money(minOrd() - total)} ₸</button>` : `<button class="btn" id="order">Оформить заказ · ${money(total)} ₸</button>`}</div>`;
   },
   done({ id, total, wa }) {
     return `<div class="done"><img src="img/logo.png" style="width:64px;border-radius:50%" alt=""><div class="check">${I.check}</div><h1>Заказ принят!</h1>
@@ -452,7 +455,7 @@ const VIEWS = {
       <div class="lbl">Страна и валюта</div>
       <div class="links glass"><button data-go-country>${ctry() ? `${ctry().flag} ${esc(ctry().name)} · ${esc(ctry().sym)}` : "Выбрать страну"} <span>Сменить →</span></button></div>
       <div class="lbl">Как мы работаем</div>
-      <div class="info glass"><div><span>Минимальный заказ</span><span>от ${money(S.data.shop.minOrder)} ₸</span></div><div><span>Доставка</span><span>Казахстан и СНГ</span></div><div><span>Оплата</span><span>после подтверждения в WhatsApp</span></div></div>
+      <div class="info glass"><div><span>Минимальный заказ</span><span>от ${money(minOrd())} ₸${alt(minOrd()) ? `<br><small>${alt(minOrd())}</small>` : ""}</span></div><div><span>Доставка</span><span>Казахстан и СНГ</span></div><div><span>Оплата</span><span>после подтверждения в WhatsApp</span></div></div>
       <div class="lbl">Связь</div>
       <div class="links glass"><button data-wa="Здравствуйте! У меня вопрос по каталогу Medellin.">Написать в WhatsApp <span>→</span></button>
       ${S.data.shop.channel ? `<button data-link="${esc(S.data.shop.channel)}">Наш Telegram-канал <span>→</span></button>` : ""}</div>`;
