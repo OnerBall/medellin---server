@@ -23,13 +23,20 @@ function colorOpts(r) {
   const n = media ? media.filter((m) => m.t === "p").length : (jarr(r.photos) || []).length;
   // одно фото со всеми цветами, а в посте перечислены цвета («Цвета: чёрный, розовый…») — выбор по названиям
   const listed = (jarr(r.colors) || []).map((c) => (typeof c === "string" ? c : c && c.name)).filter(Boolean);
-  if (!r.color_mode && n < 2 && listed.length > 1) return listed.map((label, k) => ({ k, label, photo: null }));
+  const cap = (s) => s[0].toUpperCase() + s.slice(1);
+  if (!r.color_mode && listed.length > 1 && n !== listed.length) return listed.map((label, k) => ({ k, label: cap(label), photo: null }));
+  // цветов столько же, сколько фото — подписываем фото названиями цветов
+  if (!r.color_mode && listed.length > 1 && n === listed.length && !jarr(r.color_photos)) return listed.map((label, k) => ({ k, label: cap(label), photo: k }));
   const chosen = jarr(r.color_photos);
   const idx = (chosen || Array.from({ length: Math.max(0, n - colorFrom(r)) }, (_, i) => i + colorFrom(r))).filter((i) => Number.isInteger(i) && i >= 0 && i < n);
   return idx.map((i, j) => ({ k: i, label: `Расцветка №${j + 1}`, photo: i }));
 }
 const codeRe = (code) => new RegExp(`(^|[^0-9a-zа-я])${code.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^0-9a-zа-я]|$)`, "i");
 const { parseCaption } = require("./parse");
+// товары, загруженные до того, как бот научился читать «Черный: S M L» — дочитываем размеры и цвета из подписи
+for (const r of db.prepare("SELECT id, caption, sizes, colors FROM products WHERE caption IS NOT NULL AND caption != '' AND (sizes IS NULL OR sizes = '[]')").all()) {
+  try { const p = parseCaption(r.caption); if (p.sizes.length) db.prepare("UPDATE products SET sizes=?, colors=? WHERE id=?").run(JSON.stringify(p.sizes), JSON.stringify(p.colors.length ? p.colors : JSON.parse(r.colors || "[]")), r.id); } catch (e) { /* пропускаем */ }
+}
 const { BY_KEY } = require("./categories");
 const { unitOf, plural, detectUnit } = require("./units");
 
@@ -169,7 +176,7 @@ function importPost(post) {
 }
 
 function update(id, fields) {
-  const allowed = ["category", "price_per_unit", "pack_qty", "in_stock", "hidden", "name", "admin_msg_id", "unit", "sale_price", "color_mode", "country", "color_photos", "color_names"];
+  const allowed = ["sizes", "category", "price_per_unit", "pack_qty", "in_stock", "hidden", "name", "admin_msg_id", "unit", "sale_price", "color_mode", "country", "color_photos", "color_names"];
   const sets = Object.keys(fields).filter((k) => allowed.includes(k));
   if (!sets.length) return get(id);
   db.prepare(`UPDATE products SET ${sets.map((k) => `${k}=@${k}`).join(", ")}, updated_at=@u WHERE id=@id`).run({ ...fields, u: Date.now(), id });

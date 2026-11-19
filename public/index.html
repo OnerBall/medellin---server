@@ -332,6 +332,7 @@ const VIEWS = {
       <div class="ef glass">
         <label>Название<input id="e_name" value="${esc(f.name)}"></label>
         <div class="two"><label>Цена ${esc(f.unit.per)}, ₸<input id="e_price" inputmode="numeric" value="${f.price || ""}"></label><label>В упаковке, ${esc(f.unit.forms[2])}<input id="e_pack" inputmode="numeric" value="${f.pack || ""}"></label></div>
+        <label>Размеры <small>через пробел, пусто — без выбора размера</small><input id="e_sizes" value="${esc(f.sizes || "")}" placeholder="S M L XL XXL"></label>
         <label>Цена со скидкой, ₸ <small>пусто — без скидки</small><input id="e_sale" inputmode="numeric" value="${f.sale || ""}"></label>
         <label>Категория<select id="e_cat">${opt("", "— без категории —", f.category)}${cats}</select></label>
         <label>Производство <small>пусто — не показывать</small><input id="e_country" value="${esc(f.country)}" placeholder="Турция, Китай…"></label>
@@ -681,7 +682,7 @@ async function openEdit(id) {
 }
 function bindEdit(cur) {
   const f = S.edit.f, val = (s) => ($(s) || {}).value;
-  const sync = () => { f.name = val("#e_name"); f.price = val("#e_price"); f.pack = val("#e_pack"); f.sale = val("#e_sale"); f.category = val("#e_cat"); f.country = val("#e_country");
+  const sync = () => { f.name = val("#e_name"); f.price = val("#e_price"); f.pack = val("#e_pack"); f.sale = val("#e_sale"); f.category = val("#e_cat"); f.country = val("#e_country"); f.sizes = val("#e_sizes");
     if ($("#e_names")) f.colorNames = val("#e_names").split(/[,;\n]+/).map((s) => s.trim()).filter(Boolean); };
   const rerender = () => { sync(); const y = window.scrollY; render(); window.scrollTo(0, y); };
   app.querySelectorAll("[data-cm]").forEach((b) => (b.onclick = () => { haptic(); f.colorMode = b.dataset.cm; rerender(); }));

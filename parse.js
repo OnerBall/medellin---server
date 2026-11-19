@@ -88,10 +88,21 @@ function parseCaption(caption) {
     }
   }
 
+  // размеры по цветам: «Черный: S M L XL XXL» / «Серый: S M L» — каждая строка = цвет со своими размерами
+  const byColor = [];
+  for (const l of body) {
+    const m = stripDecor(l).match(/^([A-Za-zА-Яа-яЁё][A-Za-zА-Яа-яЁё\s\-]{1,24}?)\s*[:\-–]\s*(.+)$/);
+    if (!m || /размер|цена|упаков|производ|доставк|отправ|код|артикул|заказ|whatsapp|материал|состав|ткань/i.test(m[1])) continue;
+    const toks = m[2].split(/[\s,;|\/]+/).map((x) => x.trim().replace(/\.$/, "")).filter(Boolean);
+    if (!toks.length || !toks.every((x) => SIZE_RE.test(x))) continue;
+    byColor.push({ name: m[1].trim().toLowerCase(), sizes: toks.map((x) => x.toUpperCase()) });
+  }
+  if (byColor.length && !sizes.length) sizes = [...new Set(byColor.flatMap((c) => c.sizes))].slice(0, 12);
+
   // цвета — только если явно перечислены
-  const colors = [];
+  const colors = byColor.length > 1 ? byColor.map((c) => ({ name: c.name, sizes: c.sizes })) : [];
   const colorLine = body.find((l) => /цвет/i.test(l) && !/один цвет|разн\w* цвет|ассорти/i.test(l));
-  if (colorLine) {
+  if (colorLine && !colors.length) {
     const t = colorLine.toLowerCase().replace(/ё/g, "е");
     for (const [stem, c] of Object.entries(COLORS)) if (t.includes(stem)) colors.push({ name: c[0], hex: c[1] });
   }
