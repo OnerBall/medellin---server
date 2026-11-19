@@ -61,7 +61,7 @@ for (const r of db.prepare("SELECT id, caption, sizes, colors FROM products WHER
   try { const p = parseCaption(r.caption), old = JSON.parse(r.sizes || "[]"); if (p.sizes.length > old.length && (old.length <= 1 || old.every((z) => p.sizes.includes(z)))) db.prepare("UPDATE products SET sizes=?, colors=? WHERE id=?").run(JSON.stringify(p.sizes), JSON.stringify(p.colors.length ? p.colors : JSON.parse(r.colors || "[]")), r.id); } catch (e) { /* пропускаем */ }
 }
 // цены по цвету/размеру для уже загруженных товаров
-for (const r of db.prepare("SELECT id, caption, colors, color_mode FROM products WHERE price_rules IS NULL AND caption LIKE '%тг%'").all()) {
+for (const r of db.prepare("SELECT id, caption, colors, color_mode FROM products WHERE price_rules IS NULL AND (caption LIKE '%тг%' OR caption LIKE '%₸%' OR caption LIKE '%тенге%')").all()) {
   try {
     const p = parseCaption(r.caption);
     if (!p.priceRules.length) continue;
