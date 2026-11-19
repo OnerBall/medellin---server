@@ -10,6 +10,10 @@ const MIX_RE = /(разн[а-яё]*|микс|ассорти|разноцветн
 try { db.exec("ALTER TABLE products ADD COLUMN color_photos TEXT"); } catch (e) { /* уже есть */ }
 try { db.exec("ALTER TABLE products ADD COLUMN color_names TEXT"); } catch (e) { /* уже есть */ }
 try { db.exec("ALTER TABLE products ADD COLUMN price_rules TEXT"); } catch (e) { /* уже есть */ }
+try { db.exec("ALTER TABLE products ADD COLUMN size_mode TEXT"); } catch (e) { /* уже есть */ }
+// «В упаковке 12шт разные размеры» — размеры идут вперемешку в пачке, клиент размер не выбирает
+const SIZE_MIX_RE = /разн[а-яё]*\s+размер|размер[а-яё]*\s*[:\-–]?\s*(микс|ассорти|разные|вперемешку)|микс\s+размер|ассорти\s+размер|размерн[а-яё]*\s+ряд\s+в\s+упаков/i;
+const sizeMix = (r) => (r.size_mode ? r.size_mode === "mix" : SIZE_MIX_RE.test(r.caption || ""));
 const nc = (s) => String(s || "").toLowerCase().replace(/ё/g, "е").trim();
 // цена за штуку для конкретного размера и цвета (самое точное правило выигрывает)
 function varPrice(r, size, colorLabel) {
@@ -204,7 +208,7 @@ function importPost(post) {
 }
 
 function update(id, fields) {
-  const allowed = ["price_rules", "sizes", "category", "price_per_unit", "pack_qty", "in_stock", "hidden", "name", "admin_msg_id", "unit", "sale_price", "color_mode", "country", "color_photos", "color_names"];
+  const allowed = ["size_mode", "price_rules", "sizes", "category", "price_per_unit", "pack_qty", "in_stock", "hidden", "name", "admin_msg_id", "unit", "sale_price", "color_mode", "country", "color_photos", "color_names"];
   const sets = Object.keys(fields).filter((k) => allowed.includes(k));
   if (!sets.length) return get(id);
   db.prepare(`UPDATE products SET ${sets.map((k) => `${k}=@${k}`).join(", ")}, updated_at=@u WHERE id=@id`).run({ ...fields, u: Date.now(), id });
@@ -242,7 +246,7 @@ function toJSON(r) {
   const u = unitOf(r.unit);
   return {
     id: r.id, name: r.name, section: c ? c.section : null, category: r.category, description: r.description || "",
-    priceRules: (jarr(r.price_rules) || []).map((ru) => ({ c: ru.c, s: ru.s, p: onSale(r) ? Math.round(ru.p * r.sale_price / r.price_per_unit) : ru.p })), price: effPrice(r), oldPrice: onSale(r) ? r.price_per_unit : null, sale: onSale(r) ? Math.round((1 - r.sale_price / r.price_per_unit) * 100) : 0, pack: r.pack_qty, unit: { key: r.unit || "pcs", ...u }, sizes: JSON.parse(r.sizes || "[]"),
+    priceRules: (jarr(r.price_rules) || []).map((ru) => ({ c: ru.c, s: ru.s, p: onSale(r) ? Math.round(ru.p * r.sale_price / r.price_per_unit) : ru.p })), price: effPrice(r), oldPrice: onSale(r) ? r.price_per_unit : null, sale: onSale(r) ? Math.round((1 - r.sale_price / r.price_per_unit) * 100) : 0, pack: r.pack_qty, unit: { key: r.unit || "pcs", ...u }, sizes: sizeMix(r) ? [] : JSON.parse(r.sizes || "[]"), sizesInPack: sizeMix(r) ? JSON.parse(r.sizes || "[]") : [],
     colors: JSON.parse(r.colors || "[]"), country: r.country || "", inStock: !!r.in_stock,
     isNew: Date.now() - r.created_at < NEW_DAYS * 86400e3, photos: photos.map((_, i) => `/photo/${r.id}/${i}`), media,
     hasVideo: media.some((m) => m.type === "video"), nPhotos: media.filter((m) => m.type === "photo").length || photos.length, noColors: colorMode(r) === "mix", colorFrom: colorFrom(r), colorOpts: colorOpts(r).map((o) => ({ k: o.k, label: o.label, photo: o.photo === null ? null : photos[o.photo] || null })), createdAt: r.created_at
@@ -255,4 +259,4 @@ function listPublic() {
 
 const packText = (r) => `${r.pack_qty} ${plural(r.pack_qty, unitOf(r.unit).forms)}`;
 
-module.exports = { varPrice, colorOpts, colorMode, colorFrom, onSale, effPrice, importPost, update, remove, get, toJSON, listPublic, isPublic, mediaOf, packText, VIDEO_MAX };
+module.exports = { sizeMix, varPrice, colorOpts, colorMode, colorFrom, onSale, effPrice, importPost, update, remove, get, toJSON, listPublic, isPublic, mediaOf, packText, VIDEO_MAX };

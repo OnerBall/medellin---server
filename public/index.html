@@ -350,6 +350,7 @@ const VIEWS = {
       : f.colorMode === "names" ? `<div class="ehint">Когда все цвета на одном фото. Напишите через запятую:</div><input class="ein" id="e_names" value="${esc(f.colorNames.join(", "))}" placeholder="чёрный, розовый, голубой, красный, белый">`
       : `<div class="ehint">Клиент просто выбирает количество упаковок — для «один цвет в пачке» без вариантов или «микс цветов».</div>`}
       <div class="ef glass" style="margin-top:14px">
+        <button class="switch ${f.sizeMix ? "on" : ""}" data-etog="sizeMix">Размеры в упаковке вперемешку <small style="display:block;font-size:12px;color:var(--cream2)">клиент не выбирает размер</small><i></i></button>
         <button class="switch ${f.inStock ? "on" : ""}" data-etog="inStock">В наличии<i></i></button>
         <button class="switch ${f.hidden ? "on" : ""}" data-etog="hidden">Скрыть из каталога<i></i></button>
       </div>
@@ -390,7 +391,7 @@ const VIEWS = {
     const cf = p.colorFrom || 0, multi = hasColors(p), col = Number.isInteger(color) ? color : -1;
     const qty = S.pqty || 1;
     const inc = inCart(p, size, col), n = inc ? inc.qty : 0;
-    const info = [["Раздел", `${(sec(p.section) || {}).title} · ${catTitle(p.category)}`], p.country && ["Производство", p.country], ["В упаковке", `${p.pack} ${plural(p.pack, ...p.unit.forms)}`], ["Доставка", "Казахстан и СНГ"]].filter(Boolean);
+    const info = [["Раздел", `${(sec(p.section) || {}).title} · ${catTitle(p.category)}`], (p.sizesInPack || []).length && ["Размеры в упаковке", p.sizesInPack.join(", ")], p.country && ["Производство", p.country], ["В упаковке", `${p.pack} ${plural(p.pack, ...p.unit.forms)}`], ["Доставка", "Казахстан и СНГ"]].filter(Boolean);
     return `<div class="gallery"><div class="track" id="track">${p.media.map((m) => m.type === "video" ? `<video src="${m.src}" ${m.poster ? `poster="${m.poster}"` : ""} playsinline controls preload="metadata"></video>` : `<div style="background-image:url('${m.src}')"></div>`).join("")}</div>
       <div class="nav"><button class="icon-btn" data-back aria-label="Назад">${I.back}</button><button class="icon-btn" data-share aria-label="Поделиться">${I.share}</button></div>
       ${p.media.length > 1 ? `<div class="dots">${p.media.map((_, i) => `<i class="${i ? "" : "on"}"></i>`).join("")}</div>` : ""}</div>

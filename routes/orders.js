@@ -49,7 +49,7 @@ router.post("/api/orders", async (req, res) => {
     if (!r || !products.isPublic(r)) return res.status(409).json({ error: "Какой-то товар закончился или убран из каталога. Обновите корзину." });
     if (!r.in_stock) return res.status(409).json({ error: `«${r.name}» сейчас нет в наличии` });
     const sizes = JSON.parse(r.sizes || "[]");
-    const size = sizes.includes(it.size) ? it.size : "";
+    const size = !products.sizeMix(r) && sizes.includes(it.size) ? it.size : "";
     const opts = products.colorOpts(r), opt = opts.length > 1 ? opts.find((o) => o.k === it.c) : null;
     const c = opt ? opt.k : -1, cl = opt ? opt.label : "", cp = opt && opt.photo !== null ? opt.photo : -1;
     items.push({ id: r.id, name: r.name, size, c, cl, cp, qty, pack: r.pack_qty, price: products.varPrice(r, size, cl), unit: r.unit || "pcs" });
