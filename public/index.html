@@ -496,7 +496,11 @@ function inCart(p, size, color = -1) {
 const hasColors = (p) => (p.colorOpts || []).length > 1;
 const colorOpt = (p, k) => (p.colorOpts || []).find((o) => o.k === k);
 const SW = { "чёрн": "#1a1a1a", "черн": "#1a1a1a", "бел": "#fff", "молоч": "#f3ead8", "крас": "#c8202e", "бордо": "#6d1424", "роз": "#f2a7bd", "пудр": "#e8c4bd", "голуб": "#9cc7ee", "син": "#2a4fa0", "беж": "#d9c2a3", "сер": "#9a9a9a", "зел": "#3f8f5a", "олив": "#7b7d3d", "жёлт": "#f1cf45", "желт": "#f1cf45", "корич": "#6b4630", "шоколад": "#5a3a28", "мокко": "#8a6b55", "фиол": "#7a4fa3", "сирен": "#b59ad6", "лаванд": "#c4b5e6", "мят": "#a8e0cc", "персик": "#f7b99a", "корал": "#f27a63", "оранж": "#f08a2c", "капуч": "#b08e70", "лилов": "#9c5ab8", "хаки": "#7a7350", "изумруд": "#1f7a5c" };
-const swatch = (name) => { const s = String(name).toLowerCase(); const k = Object.keys(SW).find((x) => s.includes(x)); return k ? SW[k] : "linear-gradient(135deg,#f2a7bd,#9cc7ee,#f1cf45)"; };
+const sw1 = (s) => { const k = Object.keys(SW).find((x) => s.includes(x)); return k ? SW[k] : null; };
+// «белый/красный», «черный-белый», «розовый и серый» — кружок из двух половинок
+const swatch = (name) => { const s = String(name).toLowerCase(); const parts = s.split(/\s*[\/+&]\s*|\s+и\s+|\s*-\s*(?=[а-яё])/).map(sw1).filter(Boolean);
+  if (parts.length >= 2) { const n = Math.min(parts.length, 3), step = 100 / n; return `linear-gradient(135deg,${parts.slice(0, n).map((c, i) => `${c} ${i * step}% ${(i + 1) * step}%`).join(",")})`; }
+  return sw1(s) || "linear-gradient(135deg,#f2a7bd,#9cc7ee,#f1cf45)"; };
 // цена за штуку для размера и цвета (разные цены у белого / чёрного, у больших размеров)
 const ncol = (s) => String(s || "").toLowerCase().replace(/ё/g, "е").trim();
 function vprice(p, size, k) {
