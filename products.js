@@ -24,7 +24,7 @@ function varPrice(r, size, colorLabel) {
   let best = null, score = -1;
   for (const ru of rules) {
     if (ru.c && !(c && ru.c.map(nc).includes(c))) continue;
-    if (ru.s && !(z && ru.s.includes(z))) continue;
+    if (ru.s && !(z && (ru.s.includes(z) || ru.s.includes(z.split(/[\s(]/)[0])))) continue;
     const sc = (ru.c ? 1 : 0) + (ru.s ? 2 : 0);
     if (sc >= score) { score = sc; best = ru; }
   }
@@ -58,7 +58,7 @@ const { parseCaption } = require("./parse");
 // товары, загруженные до того, как бот научился читать «Черный: S M L» — дочитываем размеры и цвета из подписи
 // (и детские размеры «3/4 5/6 7/8», «1 2 3 4», которые раньше читались не полностью — например, только «11/12»)
 for (const r of db.prepare("SELECT id, caption, sizes, colors FROM products WHERE caption IS NOT NULL AND caption != ''").all()) {
-  try { const p = parseCaption(r.caption), old = JSON.parse(r.sizes || "[]"); if (p.sizes.length > old.length && old.every((z) => p.sizes.includes(z))) db.prepare("UPDATE products SET sizes=?, colors=? WHERE id=?").run(JSON.stringify(p.sizes), JSON.stringify(p.colors.length ? p.colors : JSON.parse(r.colors || "[]")), r.id); } catch (e) { /* пропускаем */ }
+  try { const p = parseCaption(r.caption), old = JSON.parse(r.sizes || "[]"); if (p.sizes.length > old.length && (old.length <= 1 || old.every((z) => p.sizes.includes(z)))) db.prepare("UPDATE products SET sizes=?, colors=? WHERE id=?").run(JSON.stringify(p.sizes), JSON.stringify(p.colors.length ? p.colors : JSON.parse(r.colors || "[]")), r.id); } catch (e) { /* пропускаем */ }
 }
 // цены по цвету/размеру для уже загруженных товаров
 for (const r of db.prepare("SELECT id, caption, colors, color_mode FROM products WHERE price_rules IS NULL AND caption LIKE '%тг%'").all()) {

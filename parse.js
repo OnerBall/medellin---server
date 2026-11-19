@@ -27,24 +27,28 @@ const normSize = (x) => { const s = x.toUpperCase().replace(/^XXXL$/, "3XL").rep
 const normColor = (s) => String(s).toLowerCase().replace(/ё/g, "е").trim();
 function parsePriceRules(body) {
   const rules = []; let group = null;
-  const priceRe = /(\d[\d\s., ]*\d|\d)\s*(?:тг|₸|тенге|tg|kzt)/i;
+  const priceRe = /(\d[\d\s., ]*\d|\d)\s*(?:тг|₸|тенге|tg|kzt)/gi;
+  const ORD = ["XXS", "XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL"];
   for (const raw of body) {
-    let l = stripDecor(raw).replace(/^цен[аы]\s*[:\-–]?\s*/i, "");
-    const m = l.match(priceRe);
-    if (!m || /скидк|был[аио]?\b|вместо|старая/i.test(l)) continue;
-    const label = l.slice(0, m.index).replace(/(со скидкой|скидк\w*|был[аио]?|за\s+\S+|опт\w*)/gi, " ").replace(/[-–—:=]+\s*$/, "").trim();
-    if (!label) { const p0 = parseInt(m[1].replace(/[\s., ]/g, ""), 10); if (p0 > 0) rules.push({ c: null, s: null, p: p0 }); group = null; continue; }
-    const ORD = ["XXS", "XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL"];
-    const toks = label.split(/[\s,;\/]+|\s+и\s+/).map((t) => t.replace(/[.:]+$/, "")).filter(Boolean)
-      .flatMap((t) => { const r = t.match(/^([a-z0-9]+)[-–]([a-z0-9]+)$/i); if (!r) return [t]; const a1 = ORD.indexOf(normSize(r[1])), b1 = ORD.indexOf(normSize(r[2])); if (a1 >= 0 && b1 > a1) return ORD.slice(a1, b1 + 1); const x = +r[1], y = +r[2]; return x > 0 && y > x && y - x <= 10 && y <= 20 ? [t, ...Array.from({ length: y - x + 1 }, (_, i) => String(x + i))] : [t]; });
-    const sz = toks.filter((t) => SIZE_RE.test(t)).map(normSize);
-    const cl = toks.filter((t) => !SIZE_RE.test(t) && /^[а-яё]{3,}$/i.test(t) && !/^(цена|размер\w*|шт|упаков\w*|и|для|все)$/i.test(t)).map(normColor);
-    if (!sz.length && !cl.length) continue;
-    if (sz.length + cl.length < toks.length / 2) continue; // это просто текст, а не вариант
-    if (cl.length) group = cl;
-    const p = parseInt(m[1].replace(/[\s., ]/g, ""), 10);
-    if (!(p > 0)) continue;
-    rules.push({ c: cl.length ? cl : group, s: sz.length ? sz : null, p });
+    const l = stripDecor(raw).replace(/^цен[аы]\s*[:\-–]?\s*/i, "");
+    if (/скидк|был[аио]?\b|вместо|старая/i.test(l)) continue;
+    // в одной строке может быть несколько цен: «1050₸, 6 7 - 1100₸»
+    let prev = 0;
+    for (const m of l.matchAll(priceRe)) {
+      const seg = l.slice(prev, m.index); prev = m.index + m[0].length;
+      const p = parseInt(m[1].replace(/[\s., ]/g, ""), 10);
+      if (!(p > 0)) continue;
+      const label = seg.replace(/^[\s,;.]+/, "").replace(/(за\s+\S+|опт\w*)/gi, " ").replace(/[-–—:=]+\s*$/, "").trim();
+      if (!label) { rules.push({ c: null, s: null, p }); group = null; continue; }
+      const toks = label.split(/[\s,;\/]+|\s+и\s+/).map((t) => t.replace(/[.:]+$/, "")).filter(Boolean)
+        .flatMap((t) => { const r = t.match(/^([a-z0-9]+)[-–]([a-z0-9]+)$/i); if (!r) return [t]; const a1 = ORD.indexOf(normSize(r[1])), b1 = ORD.indexOf(normSize(r[2])); if (a1 >= 0 && b1 > a1) return ORD.slice(a1, b1 + 1); const x = +r[1], y = +r[2]; return x > 0 && y > x && y - x <= 10 && y <= 20 ? [t, ...Array.from({ length: y - x + 1 }, (_, i) => String(x + i))] : [t]; });
+      const sz = toks.filter((t) => SIZE_RE.test(t)).map(normSize);
+      const cl = toks.filter((t) => !SIZE_RE.test(t) && /^[а-яё]{3,}$/i.test(t) && !/^(цена|размер\w*|шт|упаков\w*|и|для|все)$/i.test(t)).map(normColor);
+      if (!sz.length && !cl.length) continue;
+      if (sz.length + cl.length < toks.length / 2) continue; // это просто текст, а не вариант
+      if (cl.length) group = cl;
+      rules.push({ c: cl.length ? cl : group, s: sz.length ? sz : null, p });
+    }
   }
   return rules.length >= 2 ? rules : [];
 }
@@ -105,7 +109,9 @@ function parseCaption(caption) {
   const sizeLine = body.find((l) => /размер[а-я]*\s*[:\-–]/i.test(l)) || body.find((l) => /размер/i.test(l) && !/(разн\w*|ассорти\w*)\s+размер/i.test(l));
   if (sizeLine) {
     const after = sizeLine.split(/размер[а-я]*\s*[:\-–]?/i)[1] || "";
-    sizes = stripDecor(after).split(/[\s,;|]+|(?<=[A-Za-z])\/(?=[A-Za-z])/).map((x) => x.trim().replace(/\.$/, "")).filter((x) => SIZE_RE.test(x)).map((x) => x.toUpperCase());
+    const paren = [...stripDecor(after).matchAll(/(\d{1,3})\s*\(\s*(\d{1,3})\s*[-–]\s*(\d{1,3})\s*\)/g)];
+    if (paren.length >= 2) sizes = paren.map((m) => `${m[1]} (${m[2]}–${m[3]})`);
+    else sizes = stripDecor(after).split(/[\s,;|]+|(?<=[A-Za-z])\/(?=[A-Za-z])/).map((x) => x.trim().replace(/\.$/, "")).filter((x) => SIZE_RE.test(x)).map((x) => x.toUpperCase());
     sizes = [...new Set(sizes)].slice(0, 12);
     // «стандарт (44-52)» — один размерный ряд
     if (sizes.length === 1 && /стандарт/i.test(after) && /^\d{2,3}[-–]\d{2,3}$/.test(sizes[0])) sizes = ["Стандарт " + sizes[0].replace("-", "–")];
@@ -144,7 +150,7 @@ function parseCaption(caption) {
     const rc = [...new Set(priceRules.flatMap((r) => r.c || []))];
     if (rc.length > 1 && !colors.length) rc.forEach((name) => colors.push({ name }));
     const rs = [...new Set(priceRules.flatMap((r) => r.s || []))];
-    for (const z of rs) if (sizes.length && !sizes.includes(z) && !/[-–]/.test(z)) sizes.push(z);
+    for (const z of rs) if (sizes.length && !sizes.some((x) => x === z || x.split(/[\s(]/)[0] === z) && !/[-–]/.test(z)) sizes.push(z);
   }
 
   // страна производства

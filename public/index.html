@@ -496,7 +496,7 @@ function vprice(p, size, k) {
   const rules = p.priceRules || []; if (!rules.length) return p.price;
   const o = colorOpt(p, k), c = o ? ncol(o.label) : "", z = String(size || (p.sizes.length === 1 ? p.sizes[0] : "")).toUpperCase();
   let best = null, sc = -1;
-  for (const r of rules) { if (r.c && !(c && r.c.map(ncol).includes(c))) continue; if (r.s && !(z && r.s.includes(z))) continue; const s = (r.c ? 1 : 0) + (r.s ? 2 : 0); if (s >= sc) { sc = s; best = r; } }
+  for (const r of rules) { if (r.c && !(c && r.c.map(ncol).includes(c))) continue; if (r.s && !(z && (r.s.includes(z) || r.s.includes(z.split(/[\s(]/)[0])))) continue; const s = (r.c ? 1 : 0) + (r.s ? 2 : 0); if (s >= sc) { sc = s; best = r; } }
   return best ? best.p : p.price;
 }
 const varies = (p) => (p.priceRules || []).length > 0;
