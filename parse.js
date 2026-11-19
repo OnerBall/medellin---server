@@ -18,7 +18,7 @@ const COLORS = {
   "сер": ["серый", "#9A9A9A"], "зелен": ["зелёный", "#4F7A5A"], "бордов": ["бордовый", "#6A1422"], "фиолет": ["фиолетовый", "#7B5AA6"],
   "желт": ["жёлтый", "#E7C552"], "коричн": ["коричневый", "#6B4A35"], "молочн": ["молочный", "#F3E9D8"], "хаки": ["хаки", "#7A7550"]
 };
-const SIZE_RE = /^(XXS|XS|S|M|L|XL|XXL|XXXL|[2-8]XL|\d{2,3}(?:[-–\/]\d{2,3})?|\d{1,2}[-–]\d{1,2}(?:\s*лет)?)$/i;
+const SIZE_RE = /^(XXS|XS|S|M|L|XL|XXL|XXXL|[2-8]XL|\d{1,3}(?:[-–\/]\d{1,3})?(?:\s*лет)?)$/i;
 
 const stripDecor = (s) => s.replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}\u{2B00}-\u{2BFF}❗️❕‼️⭐️✨]/gu, "").replace(/\s{2,}/g, " ").trim();
 const num = (s) => parseInt(String(s).replace(/[\s., ]/g, ""), 10);
@@ -31,12 +31,12 @@ function parsePriceRules(body) {
   for (const raw of body) {
     let l = stripDecor(raw).replace(/^цен[аы]\s*[:\-–]?\s*/i, "");
     const m = l.match(priceRe);
-    if (!m) continue;
+    if (!m || /скидк|был[аио]?\b|вместо|старая/i.test(l)) continue;
     const label = l.slice(0, m.index).replace(/(со скидкой|скидк\w*|был[аио]?|за\s+\S+|опт\w*)/gi, " ").replace(/[-–—:=]+\s*$/, "").trim();
-    if (!label) continue;
+    if (!label) { const p0 = parseInt(m[1].replace(/[\s., ]/g, ""), 10); if (p0 > 0) rules.push({ c: null, s: null, p: p0 }); group = null; continue; }
     const ORD = ["XXS", "XS", "S", "M", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL"];
     const toks = label.split(/[\s,;\/]+|\s+и\s+/).map((t) => t.replace(/[.:]+$/, "")).filter(Boolean)
-      .flatMap((t) => { const r = t.match(/^([a-z0-9]+)[-–]([a-z0-9]+)$/i); if (!r) return [t]; const a1 = ORD.indexOf(normSize(r[1])), b1 = ORD.indexOf(normSize(r[2])); return a1 >= 0 && b1 > a1 ? ORD.slice(a1, b1 + 1) : [t]; });
+      .flatMap((t) => { const r = t.match(/^([a-z0-9]+)[-–]([a-z0-9]+)$/i); if (!r) return [t]; const a1 = ORD.indexOf(normSize(r[1])), b1 = ORD.indexOf(normSize(r[2])); if (a1 >= 0 && b1 > a1) return ORD.slice(a1, b1 + 1); const x = +r[1], y = +r[2]; return x > 0 && y > x && y - x <= 10 && y <= 20 ? [t, ...Array.from({ length: y - x + 1 }, (_, i) => String(x + i))] : [t]; });
     const sz = toks.filter((t) => SIZE_RE.test(t)).map(normSize);
     const cl = toks.filter((t) => !SIZE_RE.test(t) && /^[а-яё]{3,}$/i.test(t) && !/^(цена|размер\w*|шт|упаков\w*|и|для|все)$/i.test(t)).map(normColor);
     if (!sz.length && !cl.length) continue;
@@ -62,7 +62,9 @@ function parseCaption(caption) {
     if (s && !/^(производство|цена|размер|в упаковке|отправ|для заказа|доставка|код|артикул|от\s)/i.test(s) && !/^(скидк[а-яё]*|акци[а-яё]*|распродаж[а-яё]*|sale|новинк[а-яё]*|new|хит[а-яё]*|топ продаж)[!.\s]*$/i.test(s)) { name = s; break; }
   }
   // код/артикул: «Код: j046» — добавляем к названию, чтобы одинаковые «Женская пижама» различались
-  const codeLine = body.find((l) => /^(код|артикул|арт\.?)\s*[:№#]?\s*\S+/i.test(stripDecor(l)));
+  const nameIdx = body.findIndex((l) => stripDecor(l.replace(/#[^\s]+/g, "")).replace(/[:—-]+$/, "").trim() === name);
+  const nextLine = nameIdx >= 0 ? stripDecor(body[nameIdx + 1] || "") : "";
+  const codeLine = body.find((l) => /^(код|артикул|арт\.?)\s*[:№#]?\s*\S+/i.test(stripDecor(l))) || (/^[a-zа-я]{0,3}\d{3,8}[a-zа-я]{0,3}$/i.test(nextLine) ? "Код: " + nextLine : "");
   const code = codeLine ? stripDecor(codeLine).replace(/^(код|артикул|арт\.?)\s*[:№#]?\s*/i, "").split(/\s/)[0] : "";
   // цена без «тг» прямо в названии: «…уверенность ❤️‍🔥 33999» → цена 33 999, из названия убираем
   // (берём только если в посте нет цены с «тг», иначе это артикул: «Женские трусы 5106»)
@@ -142,7 +144,7 @@ function parseCaption(caption) {
     const rc = [...new Set(priceRules.flatMap((r) => r.c || []))];
     if (rc.length > 1 && !colors.length) rc.forEach((name) => colors.push({ name }));
     const rs = [...new Set(priceRules.flatMap((r) => r.s || []))];
-    for (const z of rs) if (sizes.length && !sizes.includes(z)) sizes.push(z);
+    for (const z of rs) if (sizes.length && !sizes.includes(z) && !/[-–]/.test(z)) sizes.push(z);
   }
 
   // страна производства
