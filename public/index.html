@@ -282,10 +282,13 @@ const saveCart = () => { S.cart = S.cart.filter((i) => byId(i.id)); store.set("m
 
 /* ---------- навигация ---------- */
 function go(name, params = {}, replace = false) { if (name === "product" && params.id && !replace) ev("view", params.id);
-  if (replace) S.stack[S.stack.length - 1] = { name, params }; else S.stack.push({ name, params });
+  if (replace) S.stack[S.stack.length - 1] = { name, params }; else { S.stack[S.stack.length - 1].y = window.scrollY; S.stack.push({ name, params }); }
   render(); window.scrollTo(0, 0);
 }
-function back() { if (S.stack.length > 1) { S.stack.pop(); render(); window.scrollTo(0, 0); } }
+function back() { if (S.stack.length > 1) { S.stack.pop(); render(); restoreY(S.stack[S.stack.length - 1].y || 0); } }
+// вернуться туда же, где был список (картинки могут догружаться — повторяем пару раз)
+function restoreY(y) { window.scrollTo(0, y); requestAnimationFrame(() => { window.scrollTo(0, y); const got = window.scrollY;
+  setTimeout(() => { if (window.scrollY === got && got < y - 5) window.scrollTo(0, y); }, 300); }); }
 function tab(name) { S.stack = [{ name: "home", params: {} }]; if (name !== "home") S.stack.push({ name, params: {} }); render(); window.scrollTo(0, 0); }
 if (tg) tg.BackButton.onClick(back);
 
