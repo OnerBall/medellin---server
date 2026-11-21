@@ -4,7 +4,7 @@ const products = require("./products");
 
 const KEY = (process.env.OPENAI_API_KEY || "").trim();
 const BASE = (process.env.OPENAI_BASE_URL || "https://api.openai.com/v1").replace(/\/$/, "");
-const MODEL = process.env.AI_VISION_MODEL || "gpt-4o-mini";
+const MODEL = process.env.AI_VISION_MODEL || "gpt-4o"; // зрение у 4o заметно точнее mini, ~1 ₸ за фото
 const enabled = () => !!KEY;
 
 const PAL = ["чёрный", "белый", "молочный", "бежевый", "капучино", "коричневый", "серый", "графит", "розовый", "пудра", "красный", "бордо", "малиновый",
@@ -35,29 +35,42 @@ async function photoData(fileId) {
 }
 
 // → ["чёрный", "бежевый", …] — цвета изделий на первом фото, слева направо / сверху вниз
+async function ask(img, text) {
+  const resp = await fetch(`${BASE}/chat/completions`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ model: MODEL, temperature: 0, response_format: { type: "json_object" }, max_tokens: 300,
+      messages: [{ role: "user", content: [{ type: "text", text }, { type: "image_url", image_url: { url: img, detail: "high" } }] }] }),
+  });
+  const j = await resp.json().catch(() => ({}));
+  if (!resp.ok) throw new Error((j.error && j.error.message) || `HTTP ${resp.status}`);
+  try { return JSON.parse(j.choices[0].message.content) || {}; } catch (e) { return {}; }
+}
+
+// → ["чёрный", "бежевый", …] — цвета изделий на первом фото, сверху вниз / слева направо
 async function detect(r) {
   if (!enabled()) throw new Error("нет OPENAI_API_KEY");
   const ph = photosOf(r)[0];
   if (!ph) return [];
   const img = await photoData(ph);
-  const prompt = `На фото оптовый товар (бельё/одежда): несколько одинаковых изделий разных цветов.
-Назови цвет КАЖДОГО изделия, по порядку слева направо / сверху вниз. Фон, цветы, бирки, упаковку и надписи не считай.
-Используй только слова из списка: ${PAL.join(", ")}.
-Если два изделия одного цвета, но с разным рисунком — добавь коротко рисунок: «серый в горошек», «белый с принтом». Одинаковые изделия не повторяй.
+  const prompt = `На фото оптовый товар (бельё/одежда): несколько одинаковых изделий, разложенных веером или стопкой.
+1) Посчитай, сколько ИЗДЕЛИЙ на фото (по поясам/краям). Фон, цветы, бирки, упаковку и надписи не считай.
+2) Для каждого изделия по порядку (сверху вниз / слева направо) назови ОДИН цвет — ровно столько цветов, сколько изделий.
+Используй самое близкое слово из списка: ${PAL.join(", ")}.
+Светло-кремовый = «молочный», светло-коричневый/кофейный = «капучино». Не давай двум изделиям похожие названия вроде «молочный» и «бежевый», если это одно и то же изделие.
+Если рисунок есть на всех изделиях — рисунок не пиши. Если два изделия одного цвета, но с разным рисунком — добавь коротко: «серый в горошек».
 Название товара: ${r.name || ""}.
-Ответ строго JSON: {"colors":["…","…"]}`;
-  const resp = await fetch(`${BASE}/chat/completions`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: MODEL, temperature: 0, response_format: { type: "json_object" }, max_tokens: 200,
-      messages: [{ role: "user", content: [{ type: "text", text: prompt }, { type: "image_url", image_url: { url: img, detail: "high" } }] }] }),
-  });
-  const j = await resp.json().catch(() => ({}));
-  if (!resp.ok) throw new Error((j.error && j.error.message) || `HTTP ${resp.status}`);
-  let out = [];
-  try { out = JSON.parse(j.choices[0].message.content).colors || []; } catch (e) { return []; }
+Ответ строго JSON: {"count": число изделий, "colors": ["…", …]}`;
+  let out = await ask(img, prompt);
+  let colors = Array.isArray(out.colors) ? out.colors : [];
+  const count = parseInt(out.count, 10);
+  // цветов больше, чем изделий — переспросим один раз
+  if (count >= 1 && colors.length !== count) {
+    const again = await ask(img, prompt + `\n\nВ прошлый раз ты насчитал ${count} изделий, но назвал ${colors.length} цветов: ${colors.join(", ")}. Посмотри ещё раз и дай ровно один цвет на каждое изделие.`);
+    if (Array.isArray(again.colors) && again.colors.length) { colors = again.colors; }
+  }
   const seen = new Set();
-  return out.map((s) => String(s).trim().toLowerCase().replace(/ё/g, "ё")).filter((s) => s && s.length <= 30 && !seen.has(s) && seen.add(s)).slice(0, 20);
+  return colors.map((s) => String(s).trim().toLowerCase()).filter((s) => s && s.length <= 30 && !seen.has(s) && seen.add(s)).slice(0, 20);
 }
 
 // определить и сохранить; вернёт цвета, если их 2 и больше (иначе ничего не меняет)
