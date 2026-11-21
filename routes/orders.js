@@ -53,6 +53,8 @@ router.post("/api/orders", async (req, res) => {
     if (size && products.soldOut(r).includes(size)) return res.status(400).json({ error: `«${r.name}», размер ${size} — закончился. Уберите его из корзины.` });
     const opts = products.colorOpts(r), opt = opts.length > 1 ? opts.find((o) => o.k === it.c) : null;
     const c = opt ? opt.k : -1, cl = opt ? opt.label : "", cp = opt && opt.photo !== null ? opt.photo : -1;
+    if (cl) { const so = products.soldOut(r).map((x) => String(x).toLowerCase()), l = cl.toLowerCase();
+      if (so.includes("*|" + l) || (size && so.includes(size.toLowerCase() + "|" + l))) return res.status(400).json({ error: `«${r.name}», ${cl}${size ? " " + size : ""} — закончился. Уберите из корзины.` }); }
     items.push({ id: r.id, name: r.name, size, c, cl, cp, qty, pack: r.pack_qty, price: products.varPrice(r, size, cl), unit: r.unit || "pcs" });
   }
   const total = items.reduce((s, i) => s + i.price * i.pack * i.qty, 0);

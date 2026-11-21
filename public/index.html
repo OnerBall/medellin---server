@@ -235,6 +235,8 @@ textarea.field{height:80px;padding:14px 16px;resize:none}
 .esold{padding:10px 0;border-bottom:1px solid var(--line);font-size:12px;color:var(--cream2)}.esold small{opacity:.8}
 .esold div{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .esold button{min-width:44px;height:36px;padding:0 10px;border-radius:10px;font-size:14px;font-weight:600;color:var(--cream);box-shadow:inset 0 0 0 1px var(--line)}
+.crow.off{opacity:.55}.crow.off .csw,.crow.off .cth{filter:grayscale(1)}.crow .cno{font-size:13px;color:#C0392B;font-weight:600;padding-right:10px;white-space:nowrap}
+.ecol{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap}.ecol b{min-width:84px;font-size:14px;color:var(--cream);font-weight:600}.ecol .csw{width:16px;height:16px;border-radius:50%;flex:none;box-shadow:inset 0 0 0 1px rgba(0,0,0,.15)}
 .esold button.on{background:#9b9b9b;color:#fff;text-decoration:line-through;box-shadow:none}
 </style></head><body>
 <div class="wrap" id="app"><div class="skel"></div></div>
@@ -354,6 +356,11 @@ const VIEWS = {
         <label>Название<input id="e_name" value="${esc(f.name)}"></label>
         <div class="two"><label>Цена ${esc(f.unit.per)}, ₸<input id="e_price" inputmode="numeric" value="${f.price || ""}"></label><label>В упаковке, ${esc(f.unit.forms[2])}<input id="e_pack" inputmode="numeric" value="${f.pack || ""}"></label></div>
         <label>Размеры <small>через пробел, пусто — без выбора размера</small><input id="e_sizes" value="${esc(f.sizes || "")}" placeholder="S M L XL XXL"></label>
+        ${(() => { const pp = byId(S.edit.id), labels = pp && hasColors(pp) ? pp.colorOpts.map((o) => o.label) : [], zs = (f.sizes || "").split(/[\s,;]+/).filter(Boolean), so = (f.soldOut || []).map((x) => String(x).toLowerCase());
+          if (labels.length < 2) return "";
+          const btn = (z, l, t) => `<button class="${so.includes((z + "|" + l).toLowerCase()) ? "on" : ""}" data-ecs="${esc(z + "|" + l)}">${esc(t)}</button>`;
+          return `<div class="esold"><span>Нет в наличии по цветам <small>нажмите размер, которого нет в этом цвете, или «весь цвет»</small></span>
+            ${labels.map((l) => `<div class="ecol"><span class="csw" style="background:${swatch(l)}"></span><b>${esc(l[0].toUpperCase() + l.slice(1))}</b>${f.sizeMix ? "" : zs.map((z) => btn(z, l, z)).join("")}${btn("*", l, zs.length && !f.sizeMix ? "весь цвет" : "нет в наличии")}</div>`).join("")}</div>`; })()}
         ${(f.sizes || "").trim() ? `<div class="esold"><span>Нет в наличии <small>нажмите на размер, которого нет</small></span><div>${(f.sizes || "").split(/[\s,;]+/).filter(Boolean).map((z) => `<button class="${(f.soldOut || []).includes(z.toUpperCase()) || (f.soldOut || []).includes(z) ? "on" : ""}" data-esold="${esc(z)}">${esc(z)}</button>`).join("")}</div></div>` : ""}
         <label>Цена со скидкой, ₸ <small>пусто — без скидки</small><input id="e_sale" inputmode="numeric" value="${f.sale || ""}"></label>
         <label>Разные цены <small>по цвету или размеру, каждая с новой строки — пусто, если цена одна</small><textarea id="e_prices" rows="${Math.max(2, (f.priceText || "").split("\n").length)}" placeholder="белый: 990тг&#10;белый XXL 3XL: 1150тг&#10;серый черный: 1100тг">${esc(f.priceText || "")}</textarea></label>
@@ -421,11 +428,11 @@ const VIEWS = {
       <div class="pname">${esc(p.name)}</div>
       <div class="prices"><b>${varies(p) && (!size || (multi && col < 0)) ? "от " : ""}${money(vprice(p, size, col))} ₸</b>${p.oldPrice ? `<s>${money(p.oldPrice)} ₸</s><span class="disc">−${p.sale}%</span>` : ""}<span>${p.unit.per}${alt(p.price) ? " · " + alt(p.price) : ""}</span></div>
       <div class="pack glass"><div><small>Цена за упаковку · ${p.pack} ${plural(p.pack, ...p.unit.forms)}</small><b>${varies(p) && (!size || (multi && col < 0)) ? "от " : ""}${money(vprice(p, size, col) * p.pack)} ₸</b>${alt(p.price * p.pack) ? `<div class="alt">${alt(p.price * p.pack)}</div>` : ""}</div><span style="color:var(--rose);font-size:13px;font-weight:600">${p.inStock ? "Опт" : "Нет в наличии"}</span></div>
-      ${p.sizes.length ? `<div class="lbl">Размер${p.sizes.length > 1 ? " — выберите" : ""}</div><div class="sizes">${p.sizes.map((z) => (p.soldOut || []).includes(z) ? `<button class="size off" data-soldout="${esc(z)}"><s>${esc(z)}</s><small>нет</small></button>` : `<button class="size ${size === z ? "on" : ""}" data-psize="${esc(z)}">${esc(z)}</button>`).join("")}</div>` : ""}
+      ${p.sizes.length ? `<div class="lbl">Размер${p.sizes.length > 1 ? " — выберите" : ""}</div><div class="sizes">${p.sizes.map((z) => sizeOff(p, z) ? `<button class="size off" data-soldout="${esc(z)}"><s>${esc(z)}</s><small>нет</small></button>` : `<button class="size ${size === z ? "on" : ""}" data-psize="${esc(z)}">${esc(z)}</button>`).join("")}</div>` : ""}
       ${(p.sizesInPack || []).length ? (() => { const n = p.sizesInPack.length, each = p.pack % n === 0 && p.pack / n > 1 ? p.pack / n : 0;
         return `<div class="lbl">Размеры в упаковке</div><div class="sizes">${p.sizesInPack.map((z) => `<span class="size fixed">${esc(z)}${each ? `<small>× ${each}</small>` : ""}</span>`).join("")}</div>
         <div class="chint" style="margin:-8px 2px 16px">В упаковке все эти размеры${each ? ` — по ${each} ${plural(each, ...p.unit.forms)} каждого` : ""}. Выбирать размер не нужно.</div>`; })() : ""}
-      ${multi ? `<div class="lbl">${p.colorOpts[0].photo ? "Расцветки" : "Цвета"} — сколько упаковок</div>${p.sizes.length > 1 && !size ? `<div class="chint">Сначала выберите размер ↑</div>` : ""}<div class="crows">${p.colorOpts.map((o) => { const k = o.k, q = colorQty(p, size, k); return `<div class="crow ${q ? "on" : ""}">${o.photo ? `<button class="cth" data-cshow="${k}" style="background-image:url('${o.photo}')" aria-label="Показать ${esc(o.label)}"></button>` : `<span class="csw" style="background:${swatch(o.label)}"></span>`}<span>${esc(o.label[0].toUpperCase() + o.label.slice(1))}${varies(p) ? `<small class="cpr">${money(vprice(p, size, k))} ₸ / ${p.unit.label}</small>` : ""}</span><div class="stepper sm"><button data-cstep="${k}:-1" aria-label="Меньше" ${q ? "" : 'style="opacity:.3"'}>−</button><b>${q}</b><button data-cstep="${k}:1" aria-label="Больше">+</button></div></div>`; }).join("")}</div>` : ""}
+      ${multi ? `<div class="lbl">${p.colorOpts[0].photo ? "Расцветки" : "Цвета"} — сколько упаковок</div>${p.sizes.length > 1 && !size ? `<div class="chint">Сначала выберите размер ↑</div>` : ""}<div class="crows">${p.colorOpts.map((o) => { const k = o.k, q = colorQty(p, size, k), off = colOff(p, effSize(p, size), o.label); return `<div class="crow ${q ? "on" : ""} ${off ? "off" : ""}">${o.photo ? `<button class="cth" data-cshow="${k}" style="background-image:url('${o.photo}')" aria-label="Показать ${esc(o.label)}"></button>` : `<span class="csw" style="background:${swatch(o.label)}"></span>`}<span>${esc(o.label[0].toUpperCase() + o.label.slice(1))}${varies(p) ? `<small class="cpr">${money(vprice(p, size, k))} ₸ / ${p.unit.label}</small>` : ""}</span>${off && !q ? `<span class="cno">нет в наличии</span>` : `<div class="stepper sm"><button data-cstep="${k}:-1" aria-label="Меньше" ${q ? "" : 'style="opacity:.3"'}>−</button><b>${q}</b><button data-cstep="${k}:1" aria-label="Больше">+</button></div>`}</div>`; }).join("")}</div>` : ""}
       ${p.colors.length && !multi && p.colors.every((c) => c.hex) ? `<div class="lbl">Цвета</div><div class="colors">${p.colors.map((c) => `<i style="background:${esc(c.hex)}" title="${esc(c.name)}"></i>`).join("")}</div>` : ""}
       <div class="info glass">${info.map(([a, b]) => `<div><span>${a}</span><span>${esc(b)}</span></div>`).join("")}</div>
       ${p.description ? `<div class="lbl">Описание</div><div class="desc">${esc(p.description)}</div>` : ""}
@@ -443,7 +450,7 @@ const VIEWS = {
     const f = S.form;
     return `<div class="back" style="justify-content:space-between"><div style="display:flex;align-items:center;gap:12px"><button class="icon-btn glass" data-back aria-label="Назад">${I.back}</button><h1>Корзина</h1></div><button class="chip" id="clearcart">Очистить</button></div>
       ${S.cart.map((i, k) => { const p = byId(i.id); return `<div class="citem glass"><div class="img" style="background-image:url('${(colorOpt(p, cc(i)) || {}).photo || p.photos[0]}')"></div>
-        <div class="m"><b>${esc(p.name)}</b><small>${i.size && (p.soldOut || []).includes(i.size) ? `<b style="color:#C0392B">размер ${esc(i.size)} закончился</b> · ` : i.size ? esc(i.size) + " · " : ""}${colorOpt(p, cc(i)) ? `${esc(colorOpt(p, cc(i)).label.replace(/^Расцветка/, "расцветка"))} · ` : ""}${p.pack} ${plural(p.pack, ...p.unit.forms)} в упаковке · ${money(vprice(p, i.size, cc(i)))} ₸/${p.unit.label}</small><span class="s">${money(vprice(p, i.size, cc(i)) * p.pack * i.qty)} ₸</span></div>
+        <div class="m"><b>${esc(p.name)}</b><small>${i.size && soLow(p).includes(String(i.size).toLowerCase()) ? `<b style="color:#C0392B">размер ${esc(i.size)} закончился</b> · ` : colorOpt(p, cc(i)) && colOff(p, i.size, colorOpt(p, cc(i)).label) ? `<b style="color:#C0392B">этот цвет закончился</b> · ` : i.size ? esc(i.size) + " · " : ""}${colorOpt(p, cc(i)) ? `${esc(colorOpt(p, cc(i)).label.replace(/^Расцветка/, "расцветка"))} · ` : ""}${p.pack} ${plural(p.pack, ...p.unit.forms)} в упаковке · ${money(vprice(p, i.size, cc(i)))} ₸/${p.unit.label}</small><span class="s">${money(vprice(p, i.size, cc(i)) * p.pack * i.qty)} ₸</span></div>
         <div class="stepper"><button data-cq="${k}:-1" aria-label="Меньше">−</button><b>${i.qty}</b><button data-cq="${k}:1" aria-label="Больше">+</button></div></div>`; }).join("")}
       <div class="total"><div><small>Итого · ${cartCount()} упак.</small><b>${money(total)} ₸</b>${alt(total) ? `<div class="alt" style="font-size:14px">${alt(total)}</div>` : ""}</div></div>
       ${total < minOrd() ? `<div class="minbar">Минимальная сумма заказа — <b>${money(minOrd())} ₸</b>${minAlt()}. Добавьте ещё на <b class="gold">${money(minOrd() - total)} ₸</b>${alt(minOrd() - total) ? ` <span class="malt">(${alt(minOrd() - total)})</span>` : ""}
@@ -532,6 +539,10 @@ function vprice(p, size, k) {
 const varies = (p) => (p.priceRules || []).length > 0;
 const effSize = (p, size) => size || (p.sizes.length === 1 ? p.sizes[0] : "");
 colorQty.of = (i) => (Number.isInteger(i.c) ? i.c : -1);
+// закончилось: «M» — весь размер, «M|белый» — белый в размере M, «*|белый» — белый во всех размерах
+const soLow = (p) => (p.soldOut || []).map((x) => String(x).toLowerCase());
+const colOff = (p, z, label) => { const so = soLow(p), l = String(label || "").toLowerCase(); return so.includes("*|" + l) || (!!z && so.includes(String(z).toLowerCase() + "|" + l)); };
+const sizeOff = (p, z) => soLow(p).includes(String(z).toLowerCase()) || (hasColors(p) && p.colorOpts.every((o) => colOff(p, z, o.label)));
 function colorQty(p, size, k) { const z = effSize(p, size); const it = S.cart.find((i) => i.id === p.id && i.size === z && cc(i) === k); return it ? it.qty : 0; }
 function addToCart(id, qty = 1, size = "", color = -1) {
   const p = byId(id); if (!p) return;
@@ -658,6 +669,7 @@ function bind(cur) {
       if (p.sizes.length > 1 && !z) { haptic("err"); return toast("Сначала выберите размер"); }
       if (!colorOpt(p, k)) return;
       const it = S.cart.find((i) => i.id === p.id && i.size === z && colorQty.of(i) === k);
+      if (d > 0 && colOff(p, z, colorOpt(p, k).label)) { haptic("err"); return toast(`${colorOpt(p, k).label}${z ? ", размер " + z : ""} — нет в наличии`); }
       if (d > 0) { if (it) it.qty++; else { S.cart.push({ id: p.id, size: z, c: k, qty: 1 }); ev("cart", p.id); } haptic(); }
       else if (it) { it.qty--; if (it.qty <= 0) S.cart.splice(S.cart.indexOf(it), 1); haptic(); } else return;
       saveCart(); const y = window.scrollY, tx = ($("#track") || {}).scrollLeft || 0;
@@ -752,6 +764,8 @@ function bindEdit(cur) {
     if (k >= 0) f.removePhotos.splice(k, 1);
     else { if (f.removePhotos.length + 1 >= f.photos.length) return toast("Должно остаться хотя бы одно фото"); f.removePhotos.push(i); const c = f.colorPhotos.indexOf(i); if (c >= 0) f.colorPhotos.splice(c, 1); }
     rerender(); }));
+  app.querySelectorAll("[data-ecs]").forEach((b) => (b.onclick = () => { haptic(); sync(); f.soldOut = f.soldOut || []; const v = b.dataset.ecs, k = f.soldOut.findIndex((x) => String(x).toLowerCase() === v.toLowerCase());
+    if (k >= 0) f.soldOut.splice(k, 1); else f.soldOut.push(v); rerender(); }));
   app.querySelectorAll("[data-esold]").forEach((b) => (b.onclick = () => { haptic(); f.soldOut = f.soldOut || []; const z = b.dataset.esold, k = f.soldOut.findIndex((x) => x === z || x === z.toUpperCase());
     if (k >= 0) f.soldOut.splice(k, 1); else f.soldOut.push(z.toUpperCase() === z ? z : z.toUpperCase()); rerender(); }));
   app.querySelectorAll("[data-etog]").forEach((b) => (b.onclick = () => { haptic(); f[b.dataset.etog] = !f[b.dataset.etog]; b.classList.toggle("on", f[b.dataset.etog]); }));

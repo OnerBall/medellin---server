@@ -70,7 +70,7 @@ router.post("/api/admin/save", (req, res) => {
   }
   if (typeof f.sizes === "string") u.sizes = JSON.stringify([...new Set(f.sizes.split(/[\s,;]+/).map((s) => s.trim().toUpperCase()).filter(Boolean))].slice(0, 15));
   if (typeof f.country === "string") u.country = f.country.trim().slice(0, 40);
-  if (Array.isArray(f.soldOut)) u.sold_out = JSON.stringify(f.soldOut.map(String).slice(0, 30));
+  if (Array.isArray(f.soldOut)) u.sold_out = JSON.stringify(f.soldOut.map((x) => String(x).slice(0, 60)).slice(0, 200));
   if (typeof f.sizeMix === "boolean") u.size_mode = f.sizeMix ? "mix" : "pick";
   if (typeof f.inStock === "boolean") u.in_stock = f.inStock ? 1 : 0;
   if (typeof f.hidden === "boolean") u.hidden = f.hidden ? 2 : 0;
