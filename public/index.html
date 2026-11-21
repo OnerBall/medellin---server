@@ -362,6 +362,7 @@ const VIEWS = {
       </div>
       <div class="lbl">Расцветки</div>
       <div class="seg">${seg("pick", "По фото")}${seg("names", "Названиями")}${seg("mix", "Без выбора")}</div>
+      <button class="pal-last" data-aicol style="margin:8px 0 10px;text-align:center">🤖 Определить цвета по фото</button>
       ${f.colorMode === "pick" ? `<div class="ehint">Отметьте фото, которые — <b>отдельные цвета</b>. Общие фото и повторы не отмечайте.</div>
         <div class="ephotos">${f.photos.map((ph, i) => { const n = f.colorPhotos.indexOf(i), gone = (f.removePhotos || []).includes(i); return `<div class="ephw ${gone ? "gone" : ""}"><button class="eph ${n >= 0 && !gone ? "on" : ""}" data-eph="${i}" style="background-image:url('${ph}')">${n >= 0 && !gone ? `<b>№${n + 1}</b>` : ""}</button><button class="ephdel" data-ephdel="${i}" aria-label="Удалить фото">${gone ? "↺" : "✕"}</button></div>`; }).join("")}</div>
         <div class="ehint" style="margin-top:8px">✕ — удалить фото из товара (например, общее фото или повтор). ↺ — вернуть.</div>`
@@ -735,6 +736,14 @@ function bindEdit(cur) {
   app.querySelectorAll("[data-cm]").forEach((b) => (b.onclick = () => { haptic(); f.colorMode = b.dataset.cm; rerender(); }));
   app.querySelectorAll("[data-pal]").forEach((b) => (b.onclick = () => { haptic(); sync(); const c = b.dataset.pal, i = f.colorNames.findIndex((x) => x.toLowerCase() === c);
     if (i >= 0) f.colorNames.splice(i, 1); else f.colorNames.push(c); $("#e_names").value = f.colorNames.join(", "); b.classList.toggle("on", i < 0); }));
+  const aib = app.querySelector("[data-aicol]"); if (aib) aib.onclick = async () => { haptic(); sync(); aib.disabled = true; aib.textContent = "🤖 Смотрю на фото…";
+    try { const d = await adminPost("/api/admin/aicolors", { id: cur.params.id });
+      if (d.error === "nokey") { toast("Нужен ключ OPENAI_API_KEY в Railway", 1); }
+      else if (d.error) toast("Не получилось: " + d.error, 1);
+      else if ((d.colors || []).length < 2) toast("На фото один цвет — выбор не нужен");
+      else { f.colorMode = "names"; f.colorNames = d.colors; rerender(); toast("Цвета: " + d.colors.join(", ") + ". Проверьте и сохраните"); return; }
+    } catch (e) { toast("Не получилось", 1); }
+    aib.disabled = false; aib.textContent = "🤖 Определить цвета по фото"; };
   const pl = app.querySelector("[data-pallast]"); if (pl) pl.onclick = () => { haptic(); f.colorNames = [...store.get("edit_lastcolors", [])]; rerender(); };
   app.querySelectorAll("[data-eph]").forEach((b) => (b.onclick = () => { haptic(); const i = +b.dataset.eph, n = f.colorPhotos.indexOf(i);
     if (n >= 0) f.colorPhotos.splice(n, 1); else f.colorPhotos.push(i); f.colorPhotos.sort((a, b2) => a - b2); rerender(); }));

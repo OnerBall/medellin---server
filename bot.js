@@ -11,6 +11,7 @@ const { ORDER: UNIT_ORDER, unitOf, plural } = require("./units");
 const MIN_ORDER = parseInt(process.env.MIN_ORDER || "50000", 10);
 const rates = require("./rates");
 const ai = require("./ai");
+const aicolors = require("./aicolors");
 const digest = require("./digest");
 const analytics = require("./analytics");
 
@@ -169,7 +170,14 @@ async function finish(post, notifyChat, isEdit) {
     return;
   }
   if (!res.created && !res.captionChanged && !res.mediaChanged && !notifyChat) return; // повтор без изменений — молчим
-  const prefix = res.review ? "🎬 Видеообзор добавлен к товару" : res.created ? "🆕 Новый товар из канала" : isEdit || res.captionChanged || res.mediaChanged ? "✏️ Товар обновлён" : "♻️ Этот товар уже в каталоге";
+  let prefix = res.review ? "🎬 Видеообзор добавлен к товару" : res.created ? "🆕 Новый товар из канала" : isEdit || res.captionChanged || res.mediaChanged ? "✏️ Товар обновлён" : "♻️ Этот товар уже в каталоге";
+  // все цвета на одном фото — ИИ сам называет цвета, чтобы клиент мог выбрать
+  if (!res.review && (res.created || res.captionChanged || res.mediaChanged) && aicolors.enabled() && aicolors.candidate(res.product)) {
+    try {
+      const names = await Promise.race([aicolors.apply(res.product), new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 30000))]);
+      if (names.length) { res.product = products.get(res.product.id); prefix += `\n🎨 Цвета определил ИИ: ${names.join(", ")}\nЕсли ошиблся — поправьте в каталоге (✏️ Редактировать) или кнопкой 🎨 ниже`; }
+    } catch (e) { console.warn("[bot] aicolors:", e.message); }
+  }
   try { await sendCard(target, res.product, prefix); } catch (e) { console.warn("[bot] card:", e.message); }
 }
 
@@ -388,6 +396,24 @@ if (bot) {
     const pub = all.filter(products.isPublic).length;
     const orders = db.prepare("SELECT COUNT(*) n, COALESCE(SUM(total_kzt),0) s FROM orders WHERE status!='cancelled'").get();
     await ctx.reply(`📊 Товаров: ${all.length}\n✅ В каталоге: ${pub}\n🙈 Скрыто: ${all.length - pub}\n\n🛒 Заказов: ${orders.n} на ${fmt(orders.s)} ₸\n\n📈 Что смотрят и ищут: /top\n\n${diskInfo()}`, catalogKb());
+  });
+
+  // /aicolors — ИИ проставляет цвета всем товарам, где все расцветки на одном фото, а цвета ещё не указаны
+  let aiBusy = false;
+  command("aicolors", async (ctx) => {
+    if (!isAdmin(ctx.from.id)) return;
+    if (!aicolors.enabled()) return ctx.reply("Чтобы ИИ определял цвета, добавьте в Railway → Variables ключ OPENAI_API_KEY (от platform.openai.com) и подождите 2 минуты.");
+    if (aiBusy) return ctx.reply("Уже определяю цвета, подождите — пришлю итог 🙏");
+    const rows = db.prepare("SELECT * FROM products ORDER BY created_at DESC").all().filter((r) => products.isPublic(r) && aicolors.candidate(r));
+    if (!rows.length) return ctx.reply("Все товары уже с цветами ✅");
+    aiBusy = true;
+    await ctx.reply(`🎨 Определяю цвета у ${rows.length} товаров по фото… Это займёт ~${Math.max(1, Math.ceil(rows.length * 6 / 60))} мин. Пришлю итог.`);
+    let done = 0, one = 0, fail = 0;
+    for (const r of rows) {
+      try { const names = await aicolors.apply(r); if (names.length) done++; else one++; } catch (e) { fail++; console.warn("[aicolors]", r.id, e.message); if (/key|auth|quota|billing/i.test(e.message)) { aiBusy = false; return ctx.reply("❌ OpenAI не принял ключ: " + e.message.slice(0, 200)); } }
+    }
+    aiBusy = false;
+    await ctx.reply(`✅ Готово!\n🎨 Цвета проставлены: ${done}\n▫️ Один цвет на фото — без выбора: ${one}${fail ? `\n⚠️ Не получилось: ${fail}` : ""}\n\nПроверьте пару товаров в каталоге. Если ИИ ошибся — ✏️ Редактировать → Расцветки.`, catalogKb());
   });
 
   command("hidden", async (ctx) => {

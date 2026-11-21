@@ -27,6 +27,16 @@ const admin = (req) => { const u = tgUser((req.body || {}).initData); return u &
 const jarr = (s) => { try { const a = JSON.parse(s || "null"); return Array.isArray(a) ? a : null; } catch (e) { return null; } };
 
 router.post("/api/admin/me", (req, res) => res.json({ admin: !!admin(req) }));
+// ИИ называет цвета по первому фото (не сохраняет — админ проверяет и жмёт «Сохранить»)
+router.post("/api/admin/aicolors", async (req, res) => {
+  if (!admin(req)) return res.status(403).json({ error: "нет доступа" });
+  const aicolors = require("../aicolors");
+  if (!aicolors.enabled()) return res.json({ error: "nokey" });
+  const r = products.get(String((req.body || {}).id || ""));
+  if (!r) return res.status(404).json({ error: "нет товара" });
+  try { const names = await aicolors.detect(r); res.json({ colors: names.map((s) => s[0].toUpperCase() + s.slice(1)) }); }
+  catch (e) { res.json({ error: e.message.slice(0, 200) }); }
+});
 
 router.post("/api/admin/get", (req, res) => {
   if (!admin(req)) return res.status(403).json({ error: "forbidden" });
