@@ -138,6 +138,7 @@ h2 button{font-family:Inter;font-size:14px;color:var(--gold);font-weight:500}
 .sizes{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap}
 .size{min-width:58px;padding:0 12px;height:46px;border-radius:14px;font-weight:600;background:rgba(245,235,221,.06);box-shadow:inset 0 0 0 1px var(--line)}
 .size.on{background:rgba(217,178,111,.15);color:var(--gold);box-shadow:inset 0 0 0 1.5px var(--gold)}
+.size.fixed{display:inline-flex;align-items:center;justify-content:center;gap:5px}.size.fixed small{font-size:12px;font-weight:500;color:var(--cream2)}
 .colors{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap}
 .colors i{width:30px;height:30px;border-radius:50%;box-shadow:0 0 0 2px var(--bg),0 0 0 3px rgba(245,235,221,.25)}
 .info{padding:4px 16px;margin-bottom:16px}
@@ -405,7 +406,7 @@ const VIEWS = {
     const cf = p.colorFrom || 0, multi = hasColors(p), col = Number.isInteger(color) ? color : -1;
     const qty = S.pqty || 1;
     const inc = inCart(p, size, col), n = inc ? inc.qty : 0;
-    const info = [["Раздел", `${(sec(p.section) || {}).title} · ${catTitle(p.category)}`], (p.sizesInPack || []).length && ["Размеры в упаковке", p.sizesInPack.join(", ")], p.country && ["Производство", p.country], ["В упаковке", `${p.pack} ${plural(p.pack, ...p.unit.forms)}`], ["Доставка", "Казахстан и СНГ"]].filter(Boolean);
+    const info = [["Раздел", `${(sec(p.section) || {}).title} · ${catTitle(p.category)}`], p.country && ["Производство", p.country], ["В упаковке", `${p.pack} ${plural(p.pack, ...p.unit.forms)}`], ["Доставка", "Казахстан и СНГ"]].filter(Boolean);
     return `<div class="gallery"><div class="track" id="track">${p.media.map((m) => m.type === "video" ? `<video src="${m.src}" ${m.poster ? `poster="${m.poster}"` : ""} playsinline controls preload="metadata"></video>` : `<div style="background-image:url('${m.src}')"></div>`).join("")}</div>
       <div class="nav"><button class="icon-btn" data-back aria-label="Назад">${I.back}</button><button class="icon-btn" data-share aria-label="Поделиться">${I.share}</button></div>
       ${p.media.length > 1 ? `<div class="dots">${p.media.map((_, i) => `<i class="${i ? "" : "on"}"></i>`).join("")}</div>` : ""}</div>
@@ -414,6 +415,9 @@ const VIEWS = {
       <div class="prices"><b>${varies(p) && (!size || (multi && col < 0)) ? "от " : ""}${money(vprice(p, size, col))} ₸</b>${p.oldPrice ? `<s>${money(p.oldPrice)} ₸</s><span class="disc">−${p.sale}%</span>` : ""}<span>${p.unit.per}${alt(p.price) ? " · " + alt(p.price) : ""}</span></div>
       <div class="pack glass"><div><small>Цена за упаковку · ${p.pack} ${plural(p.pack, ...p.unit.forms)}</small><b>${varies(p) && (!size || (multi && col < 0)) ? "от " : ""}${money(vprice(p, size, col) * p.pack)} ₸</b>${alt(p.price * p.pack) ? `<div class="alt">${alt(p.price * p.pack)}</div>` : ""}</div><span style="color:var(--rose);font-size:13px;font-weight:600">${p.inStock ? "Опт" : "Нет в наличии"}</span></div>
       ${p.sizes.length ? `<div class="lbl">Размер${p.sizes.length > 1 ? " — выберите" : ""}</div><div class="sizes">${p.sizes.map((z) => (p.soldOut || []).includes(z) ? `<button class="size off" data-soldout="${esc(z)}"><s>${esc(z)}</s><small>нет</small></button>` : `<button class="size ${size === z ? "on" : ""}" data-psize="${esc(z)}">${esc(z)}</button>`).join("")}</div>` : ""}
+      ${(p.sizesInPack || []).length ? (() => { const n = p.sizesInPack.length, each = p.pack % n === 0 && p.pack / n > 1 ? p.pack / n : 0;
+        return `<div class="lbl">Размеры в упаковке</div><div class="sizes">${p.sizesInPack.map((z) => `<span class="size fixed">${esc(z)}${each ? `<small>× ${each}</small>` : ""}</span>`).join("")}</div>
+        <div class="chint" style="margin:-8px 2px 16px">В упаковке все эти размеры${each ? ` — по ${each} ${plural(each, ...p.unit.forms)} каждого` : ""}. Выбирать размер не нужно.</div>`; })() : ""}
       ${multi ? `<div class="lbl">${p.colorOpts[0].photo ? "Расцветки" : "Цвета"} — сколько упаковок</div>${p.sizes.length > 1 && !size ? `<div class="chint">Сначала выберите размер ↑</div>` : ""}<div class="crows">${p.colorOpts.map((o) => { const k = o.k, q = colorQty(p, size, k); return `<div class="crow ${q ? "on" : ""}">${o.photo ? `<button class="cth" data-cshow="${k}" style="background-image:url('${o.photo}')" aria-label="Показать ${esc(o.label)}"></button>` : `<span class="csw" style="background:${swatch(o.label)}"></span>`}<span>${esc(o.label[0].toUpperCase() + o.label.slice(1))}${varies(p) ? `<small class="cpr">${money(vprice(p, size, k))} ₸ / ${p.unit.label}</small>` : ""}</span><div class="stepper sm"><button data-cstep="${k}:-1" aria-label="Меньше" ${q ? "" : 'style="opacity:.3"'}>−</button><b>${q}</b><button data-cstep="${k}:1" aria-label="Больше">+</button></div></div>`; }).join("")}</div>` : ""}
       ${p.colors.length && !multi && p.colors.every((c) => c.hex) ? `<div class="lbl">Цвета</div><div class="colors">${p.colors.map((c) => `<i style="background:${esc(c.hex)}" title="${esc(c.name)}"></i>`).join("")}</div>` : ""}
       <div class="info glass">${info.map(([a, b]) => `<div><span>${a}</span><span>${esc(b)}</span></div>`).join("")}</div>
