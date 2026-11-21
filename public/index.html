@@ -138,6 +138,9 @@ h2 button{font-family:Inter;font-size:14px;color:var(--gold);font-weight:500}
 .sizes{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap}
 .size{min-width:58px;padding:0 12px;height:46px;border-radius:14px;font-weight:600;background:rgba(245,235,221,.06);box-shadow:inset 0 0 0 1px var(--line)}
 .size.on{background:rgba(217,178,111,.15);color:var(--gold);box-shadow:inset 0 0 0 1.5px var(--gold)}
+.pal{display:flex;flex-wrap:wrap;gap:7px;margin:6px 0 4px}.pal button{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 12px 0 8px;border-radius:12px;font-size:14px;background:rgba(30,22,18,.05);box-shadow:inset 0 0 0 1px var(--line)}
+.pal button i{width:18px;height:18px;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(0,0,0,.15);flex:none}.pal button.on{background:#171310;color:#F7F0E6;box-shadow:none}
+.pal-last{display:block;width:100%;text-align:left;margin-top:8px;padding:10px 12px;border-radius:12px;font-size:14px;background:rgba(217,178,111,.15);color:var(--ink,#171310)}
 .size.fixed{display:inline-flex;align-items:center;justify-content:center;gap:5px}.size.fixed small{font-size:12px;font-weight:500;color:var(--cream2)}
 .colors{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap}
 .colors i{width:30px;height:30px;border-radius:50%;box-shadow:0 0 0 2px var(--bg),0 0 0 3px rgba(245,235,221,.25)}
@@ -362,7 +365,10 @@ const VIEWS = {
       ${f.colorMode === "pick" ? `<div class="ehint">Отметьте фото, которые — <b>отдельные цвета</b>. Общие фото и повторы не отмечайте.</div>
         <div class="ephotos">${f.photos.map((ph, i) => { const n = f.colorPhotos.indexOf(i), gone = (f.removePhotos || []).includes(i); return `<div class="ephw ${gone ? "gone" : ""}"><button class="eph ${n >= 0 && !gone ? "on" : ""}" data-eph="${i}" style="background-image:url('${ph}')">${n >= 0 && !gone ? `<b>№${n + 1}</b>` : ""}</button><button class="ephdel" data-ephdel="${i}" aria-label="Удалить фото">${gone ? "↺" : "✕"}</button></div>`; }).join("")}</div>
         <div class="ehint" style="margin-top:8px">✕ — удалить фото из товара (например, общее фото или повтор). ↺ — вернуть.</div>`
-      : f.colorMode === "names" ? `<div class="ehint">Когда все цвета на одном фото. Напишите через запятую:</div><input class="ein" id="e_names" value="${esc(f.colorNames.join(", "))}" placeholder="чёрный, розовый, голубой, красный, белый">`
+      : f.colorMode === "names" ? `<div class="ehint">Когда все цвета на одном фото. Напишите через запятую:</div><input class="ein" id="e_names" value="${esc(f.colorNames.join(", "))}" placeholder="чёрный, розовый, голубой, красный, белый">
+        <div class="ehint" style="margin-top:10px">Или нажмите на цвета:</div>
+        <div class="pal">${PAL.map((c) => `<button class="${f.colorNames.some((x) => x.toLowerCase() === c) ? "on" : ""}" data-pal="${c}"><i style="background:${swatch(c)}"></i>${c}</button>`).join("")}</div>
+        ${(store.get("edit_lastcolors", []) || []).length ? `<button class="pal-last" data-pallast>↻ Как в прошлом товаре: ${esc(store.get("edit_lastcolors", []).join(", "))}</button>` : ""}`
       : `<div class="ehint">Клиент просто выбирает количество упаковок — для «один цвет в пачке» без вариантов или «микс цветов».</div>`}
       <div class="ef glass" style="margin-top:14px">
         <button class="switch ${f.sizeMix ? "on" : ""}" data-etog="sizeMix">Размеры в упаковке вперемешку <small style="display:block;font-size:12px;color:var(--cream2)">клиент не выбирает размер</small><i></i></button>
@@ -506,9 +512,10 @@ function inCart(p, size, color = -1) {
 // есть ли у товара выбор расцветки (микс — нет; 1-е фото общее — не считается)
 const hasColors = (p) => (p.colorOpts || []).length > 1;
 const colorOpt = (p, k) => (p.colorOpts || []).find((o) => o.k === k);
-const SW = { "чёрн": "#1a1a1a", "черн": "#1a1a1a", "бел": "#fff", "молоч": "#f3ead8", "крас": "#c8202e", "бордо": "#6d1424", "роз": "#f2a7bd", "пудр": "#e8c4bd", "голуб": "#9cc7ee", "син": "#2a4fa0", "беж": "#d9c2a3", "сер": "#9a9a9a", "зел": "#3f8f5a", "олив": "#7b7d3d", "жёлт": "#f1cf45", "желт": "#f1cf45", "корич": "#6b4630", "шоколад": "#5a3a28", "мокко": "#8a6b55", "фиол": "#7a4fa3", "сирен": "#b59ad6", "лаванд": "#c4b5e6", "мят": "#a8e0cc", "персик": "#f7b99a", "корал": "#f27a63", "оранж": "#f08a2c", "капуч": "#b08e70", "лилов": "#9c5ab8", "хаки": "#7a7350", "изумруд": "#1f7a5c" };
+const SW = { "графит": "#3d3f44", "малин": "#c2185b", "бирюз": "#2bb3b1", "горчич": "#c99a2e", "тёмно-син": "#1f2f5c", "темно-син": "#1f2f5c", "чёрн": "#1a1a1a", "черн": "#1a1a1a", "бел": "#fff", "молоч": "#f3ead8", "крас": "#c8202e", "бордо": "#6d1424", "роз": "#f2a7bd", "пудр": "#e8c4bd", "голуб": "#9cc7ee", "син": "#2a4fa0", "беж": "#d9c2a3", "сер": "#9a9a9a", "зел": "#3f8f5a", "олив": "#7b7d3d", "жёлт": "#f1cf45", "желт": "#f1cf45", "корич": "#6b4630", "шоколад": "#5a3a28", "мокко": "#8a6b55", "фиол": "#7a4fa3", "сирен": "#b59ad6", "лаванд": "#c4b5e6", "мят": "#a8e0cc", "персик": "#f7b99a", "корал": "#f27a63", "оранж": "#f08a2c", "капуч": "#b08e70", "лилов": "#9c5ab8", "хаки": "#7a7350", "изумруд": "#1f7a5c" };
 const sw1 = (s) => { const k = Object.keys(SW).find((x) => s.includes(x)); return k ? SW[k] : null; };
 // «белый/красный», «черный-белый», «розовый и серый» — кружок из двух половинок
+const PAL = ["чёрный", "белый", "молочный", "бежевый", "капучино", "коричневый", "серый", "графит", "розовый", "пудра", "красный", "бордо", "малиновый", "сиреневый", "фиолетовый", "голубой", "синий", "тёмно-синий", "бирюзовый", "мятный", "зелёный", "хаки", "оливковый", "жёлтый", "горчичный", "оранжевый", "персиковый"];
 const swatch = (name) => { const s = String(name).toLowerCase(); const parts = s.split(/\s*[\/+&]\s*|\s+и\s+|\s*-\s*(?=[а-яё])/).map(sw1).filter(Boolean);
   if (parts.length >= 2) { const n = Math.min(parts.length, 3), step = 100 / n; return `linear-gradient(135deg,${parts.slice(0, n).map((c, i) => `${c} ${i * step}% ${(i + 1) * step}%`).join(",")})`; }
   return sw1(s) || "linear-gradient(135deg,#f2a7bd,#9cc7ee,#f1cf45)"; };
@@ -726,6 +733,9 @@ function bindEdit(cur) {
     if ($("#e_names")) f.colorNames = val("#e_names").split(/[,;\n]+/).map((s) => s.trim()).filter(Boolean); };
   const rerender = () => { sync(); const y = window.scrollY; render(); window.scrollTo(0, y); };
   app.querySelectorAll("[data-cm]").forEach((b) => (b.onclick = () => { haptic(); f.colorMode = b.dataset.cm; rerender(); }));
+  app.querySelectorAll("[data-pal]").forEach((b) => (b.onclick = () => { haptic(); sync(); const c = b.dataset.pal, i = f.colorNames.findIndex((x) => x.toLowerCase() === c);
+    if (i >= 0) f.colorNames.splice(i, 1); else f.colorNames.push(c); $("#e_names").value = f.colorNames.join(", "); b.classList.toggle("on", i < 0); }));
+  const pl = app.querySelector("[data-pallast]"); if (pl) pl.onclick = () => { haptic(); f.colorNames = [...store.get("edit_lastcolors", [])]; rerender(); };
   app.querySelectorAll("[data-eph]").forEach((b) => (b.onclick = () => { haptic(); const i = +b.dataset.eph, n = f.colorPhotos.indexOf(i);
     if (n >= 0) f.colorPhotos.splice(n, 1); else f.colorPhotos.push(i); f.colorPhotos.sort((a, b2) => a - b2); rerender(); }));
   app.querySelectorAll("[data-ephdel]").forEach((b) => (b.onclick = () => { haptic(); const i = +b.dataset.ephdel; f.removePhotos = f.removePhotos || [];
@@ -741,6 +751,7 @@ function bindEdit(cur) {
     try {
       const d = await adminPost("/api/admin/save", { id: cur.params.id, f });
       if (!d.ok) throw 0;
+      if (f.colorMode === "names" && f.colorNames.length) store.set("edit_lastcolors", f.colorNames);
       await load(true); toast("Сохранено ✓"); back();
     } catch (e) { toast("Не удалось сохранить"); $("#e_save").disabled = false; }
   };
