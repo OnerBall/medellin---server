@@ -62,6 +62,9 @@ const colorFrom = (r) => (colorMode(r) === "skip1" ? 1 : 0);
 const jarr = (s) => { try { const a = JSON.parse(s || "null"); return Array.isArray(a) ? a : null; } catch (e) { return null; } };
 function colorOpts(r) {
   const mode = colorMode(r);
+  // в посте разные цены по цветам («Белый — 990, Серый Черный — 1100») — клиент обязан выбрать цвет, даже если стоит «без выбора»
+  const ruleCols = [...new Set((jarr(r.price_rules) || []).flatMap((ru) => ru.c || []).map((c) => String(c).toLowerCase()))];
+  if (mode === "mix" && ruleCols.length > 1) return ruleCols.map((label, k) => ({ k, label: label[0].toUpperCase() + label.slice(1), photo: null }));
   if (mode === "mix") return [];
   const names = jarr(r.color_names) || [];
   if (mode === "names") return names.map((label, k) => ({ k, label: String(label), photo: null }));
@@ -275,7 +278,7 @@ function toJSON(r) {
     priceRules: (jarr(r.price_rules) || []).map((ru) => ({ c: ru.c, s: ru.s, p: onSale(r) ? Math.round(ru.p * r.sale_price / r.price_per_unit) : ru.p })), price: effPrice(r), oldPrice: onSale(r) ? r.price_per_unit : null, sale: onSale(r) ? Math.round((1 - r.sale_price / r.price_per_unit) * 100) : 0, pack: r.pack_qty, unit: { key: r.unit || "pcs", ...u }, sizes: sizeMix(r) ? [] : JSON.parse(r.sizes || "[]"), sizesInPack: sizeMix(r) ? JSON.parse(r.sizes || "[]") : [], soldOut: soldOut(r),
     colors: JSON.parse(r.colors || "[]"), country: r.country || "", inStock: !!r.in_stock,
     isNew: Date.now() - r.created_at < NEW_DAYS * 86400e3, photos: photos.map((_, i) => purl(r, photos, i)), media,
-    hasVideo: media.some((m) => m.type === "video"), nPhotos: media.filter((m) => m.type === "photo").length || photos.length, noColors: colorMode(r) === "mix", colorFrom: colorFrom(r), colorOpts: colorOpts(r).map((o) => ({ k: o.k, label: o.label, photo: o.photo === null || !photos[o.photo] ? null : purl(r, photos, o.photo) })), createdAt: r.created_at
+    hasVideo: media.some((m) => m.type === "video"), nPhotos: media.filter((m) => m.type === "photo").length || photos.length, noColors: colorMode(r) === "mix" && colorOpts(r).length < 2, colorFrom: colorFrom(r), colorOpts: colorOpts(r).map((o) => ({ k: o.k, label: o.label, photo: o.photo === null || !photos[o.photo] ? null : purl(r, photos, o.photo) })), createdAt: r.created_at
   };
 }
 

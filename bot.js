@@ -57,7 +57,7 @@ function cardText(r) {
   ].filter((x) => x !== null).join("\n");
 }
 
-const COLOR_LABEL = { pick: "клиент выбирает расцветку по фото", skip1: "выбор расцветки, 1-е фото общее", mix: "без выбора цвета (микс / один цвет)", names: "выбор цвета по названиям" };
+const COLOR_LABEL = { pick: "клиент выбирает расцветку по фото", skip1: "выбор расцветки, 1-е фото общее", mix: "без выбора цвета (микс цветов в упаковке)", names: "выбор цвета по названиям" };
 const COLOR_NEXT = { pick: "skip1", skip1: "mix", mix: "pick", names: "pick" };
 const COUNTRIES_CYCLE = ["", "Китай", "Турция", "Узбекистан", "Казахстан", "Кыргызстан"];
 function cardKb(r) {

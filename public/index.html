@@ -377,7 +377,7 @@ const VIEWS = {
         <div class="ehint" style="margin-top:10px">Или нажмите на цвета:</div>
         <div class="pal">${PAL.map((c) => `<button class="${f.colorNames.some((x) => x.toLowerCase() === c) ? "on" : ""}" data-pal="${c}"><i style="background:${swatch(c)}"></i>${c}</button>`).join("")}</div>
         ${(store.get("edit_lastcolors", []) || []).length ? `<button class="pal-last" data-pallast>↻ Как в прошлом товаре: ${esc(store.get("edit_lastcolors", []).join(", "))}</button>` : ""}`
-      : `<div class="ehint">Клиент просто выбирает количество упаковок — для «один цвет в пачке» без вариантов или «микс цветов».</div>`}
+      : `<div class="ehint">Клиент не выбирает цвет — только если в упаковке <b>микс цветов</b> или у модели <b>всего один цвет</b>. «Один цвет в упаковке» при нескольких цветах модели — это НЕ сюда, выберите «По фото» или «Названиями».</div>`}
       <div class="ef glass" style="margin-top:14px">
         <button class="switch ${f.sizeMix ? "on" : ""}" data-etog="sizeMix">Размеры в упаковке вперемешку <small style="display:block;font-size:12px;color:var(--cream2)">клиент не выбирает размер</small><i></i></button>
         <button class="switch ${f.inStock ? "on" : ""}" data-etog="inStock">В наличии<i></i></button>
